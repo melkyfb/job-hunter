@@ -1,0 +1,88 @@
+# ── Environment & secrets ─────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.virtualenv/
+
+# ── Package managers ──────────────────────────────────────────────────────────
+pip-log.txt
+pip-delete-this-directory.txt
+.pdm.toml
+.pdm-python
+__pypackages__/
+poetry.lock
+uv.lock
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+test-results/
+
+# ── Type checkers ─────────────────────────────────────────────────────────────
+.mypy_cache/
+.pytype/
+.pyre/
+.pyright/
+
+# ── Linters & formatters ──────────────────────────────────────────────────────
+.ruff_cache/
+
+# ── IDEs & editors ────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.fleet/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Application data ──────────────────────────────────────────────────────────
+# Job Hunter local profile storage
+.job_hunter/
+
+# Uploaded resume files (never commit user data)
+uploads/
+tmp/
+
+# Generated PDFs
+output/
+generated/
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
