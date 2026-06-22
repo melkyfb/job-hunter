@@ -136,7 +136,7 @@ def _check_design_intent(prompt: str) -> None:
     raw = response.choices[0].message.content or "{}"
     try:
         result = DesignIntentResponse.model_validate_json(raw)
-    except (ValidationError, Exception):
+    except Exception:
         # If the classifier itself fails, allow generation to proceed
         return
     if not result.is_design_prompt:
