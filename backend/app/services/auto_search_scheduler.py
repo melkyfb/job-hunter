@@ -24,6 +24,7 @@ def _run() -> None:
 
         from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
         from app.services.job_pipeline import run_pipeline
+        from app.services.job_search import get_multi_provider   # NEW
 
         try:
             profile = ProfileRepository().load()
@@ -31,13 +32,15 @@ def _run() -> None:
             logger.warning("Auto-search: no profile found, skipping run")
             return
 
+        multi = get_multi_provider(config.providers)   # NEW — build once per run
+
         run_id = f"auto-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}"
         for entry in config.entries:
             if not entry.active:
                 continue
             query = f"{entry.title} {' '.join(entry.keywords)}"
             try:
-                results = run_pipeline(profile, query, config.location, max_results=20)
+                results = run_pipeline(profile, query, config.location, max_results=20, provider=multi)
                 new = upsert_jobs(results, run_id=run_id, found_via=entry.title)
                 logger.info("Auto-search '%s': %d results, %d new", entry.title, len(results), new)
             except Exception as exc:

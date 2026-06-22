@@ -286,3 +286,41 @@ def test_xing_card_to_posting_maps_fields():
     assert posting.company == "StartupAG"
     assert posting.source == "xing"
     assert posting.url == "https://www.xing.com/jobs/123"
+
+
+# ── AutoSearchConfig.providers ────────────────────────────────────────────────
+
+def test_auto_search_config_providers_default():
+    from app.models.auto_search import AutoSearchConfig
+
+    config = AutoSearchConfig()
+    assert "linkedin" in config.providers
+    assert "indeed" in config.providers
+    assert "google" in config.providers
+    assert "stepstone" in config.providers
+    assert "xing" in config.providers
+
+
+def test_auto_search_config_providers_json_roundtrip():
+    from app.models.auto_search import AutoSearchConfig
+
+    config = AutoSearchConfig(providers=["linkedin", "stepstone"])
+    json_str = config.model_dump_json()
+    loaded = AutoSearchConfig.model_validate_json(json_str)
+    assert loaded.providers == ["linkedin", "stepstone"]
+
+
+def test_auto_search_config_without_providers_field_uses_default():
+    """Old JSON files without 'providers' key should load with defaults."""
+    import json
+    from app.models.auto_search import AutoSearchConfig
+
+    old_json = json.dumps({
+        "enabled": True,
+        "interval_hours": 2,
+        "location": "Munich",
+        "page_size": 10,
+        "entries": [],
+    })
+    config = AutoSearchConfig.model_validate_json(old_json)
+    assert len(config.providers) == 5

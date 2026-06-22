@@ -23,6 +23,9 @@ class AutoSearchConfig(BaseModel):
     interval_hours: int = Field(default=2, ge=1, le=168)
     location: str = "Munich, Germany"
     page_size: int = Field(default=10, ge=5, le=50)
+    providers: list[str] = Field(
+        default_factory=lambda: ["linkedin", "indeed", "google", "stepstone", "xing"]
+    )
     entries: list[SearchEntry] = Field(default_factory=list)
 
 
