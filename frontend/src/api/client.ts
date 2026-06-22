@@ -423,6 +423,7 @@ export interface AutoSearchConfig {
   interval_hours: number
   location: string
   page_size: number
+  providers: string[]
   entries: SearchEntry[]
 }
 

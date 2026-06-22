@@ -12,6 +12,14 @@ interface Props {
 
 const INTERVAL_OPTIONS = [1, 2, 4, 8, 12, 24]
 
+const ALL_PROVIDERS: { id: string; label: string }[] = [
+  { id: 'linkedin',  label: 'LinkedIn'    },
+  { id: 'indeed',    label: 'Indeed'      },
+  { id: 'google',    label: 'Google Jobs' },
+  { id: 'stepstone', label: 'Stepstone'   },
+  { id: 'xing',      label: 'Xing'        },
+]
+
 function KeywordChips({
   keywords,
   onChange,
@@ -64,7 +72,10 @@ function KeywordChips({
 
 export function AutoSearchConfigPanel({ config, onSaved }: Props) {
   const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState<AutoSearchConfig>(config)
+  const [draft, setDraft] = useState<AutoSearchConfig>({
+    ...config,
+    providers: config.providers ?? ['linkedin', 'indeed', 'google', 'stepstone', 'xing'],
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -156,6 +167,34 @@ export function AutoSearchConfigPanel({ config, onSaved }: Props) {
                 }}
               />
             </label>
+          </div>
+
+          {/* Providers */}
+          <div style={{ marginBottom: '12px' }}>
+            <label style={{ display: 'block', fontSize: '11px', color: 'var(--text-h)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Providers
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {ALL_PROVIDERS.map(({ id, label }) => {
+                const checked = (draft.providers ?? []).includes(id)
+                return (
+                  <label key={id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const current = draft.providers ?? []
+                        const next = checked
+                          ? current.filter(p => p !== id)
+                          : [...current, id]
+                        setDraft(d => ({ ...d, providers: next }))
+                      }}
+                    />
+                    {label}
+                  </label>
+                )
+              })}
+            </div>
           </div>
 
           {/* Entries */}
