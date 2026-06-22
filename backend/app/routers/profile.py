@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import logging
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
@@ -10,10 +12,13 @@ from pydantic import BaseModel
 from app.models.ingestion import HITLResolution, IngestionResponse, IngestionStatus
 from app.models.profile import ProfileMaster
 from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
+from app.services.default_designs import seed_default_designs
 from app.services.extractors import extract_text
 from app.services.ingestion import IngestionService
 from app.services import job_store as store
 from app.services.suggestions import generate_suggestions
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -88,17 +93,28 @@ async def ingest_resume(file: UploadFile) -> AsyncJobStart:
     filename = file.filename  # capture before thread
 
     def _run() -> None:
-        def progress(step: str, message: str, pct: int) -> None:
+        def ingest_progress(step: str, message: str, pct: int) -> None:
             store.update_job(job_id, step=step, message=message, progress=pct)
 
-        result = _ingestion.run(filename, resume_text, progress)
+        result = _ingestion.run(filename, resume_text, ingest_progress)
 
         if result.status == IngestionStatus.COMPLETED and result.profile:
             _repo.delete_partial()
-            # finalise runs suggestions inline on the same background thread
+            # Run suggestions + template seeding concurrently
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                suggestions_future = pool.submit(generate_suggestions, result.profile)
+                templates_future = pool.submit(seed_default_designs)
+            suggestions = suggestions_future.result()
+            try:
+                templates = templates_future.result()
+            except Exception as exc:
+                logger.warning("seed_default_designs failed: %s", exc)
+                templates = []
             store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
-            suggestions = generate_suggestions(result.profile)
             result.profile.job_suggestions = suggestions
+            if templates:
+                result.profile.design_versions = templates
+                result.profile.active_resume_design_id = templates[0].id
             _repo.save(result.profile)
             store.update_job(
                 job_id,
@@ -183,8 +199,23 @@ async def resolve_hitl(resolution: HITLResolution) -> AsyncJobStart:
     store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=20)
 
     def _run() -> None:
-        suggestions = generate_suggestions(profile)
+        # Run suggestions + template seeding concurrently
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            suggestions_future = pool.submit(generate_suggestions, profile)
+            templates_future = pool.submit(seed_default_designs)
+
+        suggestions = suggestions_future.result()
+        try:
+            templates = templates_future.result()
+        except Exception as exc:
+            logger.warning("seed_default_designs failed in resolve: %s", exc)
+            templates = []
+
         profile.job_suggestions = suggestions
+        if templates:
+            profile.design_versions = templates
+            profile.active_resume_design_id = templates[0].id
+
         _repo.save(profile)
         result = IngestionResponse(
             ingestion_id=ingestion_id,
