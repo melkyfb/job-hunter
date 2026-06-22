@@ -9,6 +9,7 @@ from app.models.jobs import JobPosting
 from app.services.providers.adzuna import AdzunaProvider
 from app.services.providers.base import SearchProvider
 from app.services.providers.mock import MockProvider
+from app.services.providers.jobspy_prov import JobSpyProvider
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,11 @@ class MultiProvider:
 
 
 _REGISTRY: dict[str, Callable[[], SearchProvider]] = {
-    "adzuna": AdzunaProvider,
-    "mock": MockProvider,
+    "adzuna":   AdzunaProvider,
+    "mock":     MockProvider,
+    "linkedin": lambda: JobSpyProvider("linkedin"),
+    "indeed":   lambda: JobSpyProvider("indeed"),
+    "google":   lambda: JobSpyProvider("google"),
 }
 
 

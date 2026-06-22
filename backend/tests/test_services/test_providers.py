@@ -153,3 +153,64 @@ def test_run_pipeline_uses_injected_provider():
 
     mock_provider.search.assert_called_once_with("python", "Munich", 5)
     assert result == []
+
+
+# ── JobSpyProvider ────────────────────────────────────────────────────────────
+
+def test_jobspy_provider_maps_dataframe_row_to_posting():
+    import pandas as pd
+    from unittest.mock import patch
+    from app.services.providers.jobspy_prov import JobSpyProvider
+
+    mock_df = pd.DataFrame([{
+        "title": "Python Engineer",
+        "company": "TechCo GmbH",
+        "location": "Munich, Germany",
+        "description": "Build great things with Python",
+        "job_url": "https://linkedin.com/jobs/123",
+        "date_posted": None,
+        "min_amount": 70000.0,
+        "max_amount": 90000.0,
+        "currency": "EUR",
+        "job_type": "fulltime",
+    }])
+
+    with patch("app.services.providers.jobspy_prov.scrape_jobs", return_value=mock_df):
+        results = JobSpyProvider("linkedin").search("python", "Munich", 5)
+
+    assert len(results) == 1
+    assert results[0].title == "Python Engineer"
+    assert results[0].company == "TechCo GmbH"
+    assert results[0].source == "linkedin"
+    assert results[0].url == "https://linkedin.com/jobs/123"
+    assert "70" in results[0].salary_range
+    assert results[0].employment_type == "fulltime"
+
+
+def test_jobspy_provider_returns_empty_on_empty_dataframe():
+    import pandas as pd
+    from unittest.mock import patch
+    from app.services.providers.jobspy_prov import JobSpyProvider
+
+    with patch("app.services.providers.jobspy_prov.scrape_jobs", return_value=pd.DataFrame()):
+        results = JobSpyProvider("indeed").search("python", "Munich", 5)
+
+    assert results == []
+
+
+def test_jobspy_provider_calls_scrape_jobs_with_correct_args():
+    import pandas as pd
+    from unittest.mock import patch, call
+    from app.services.providers.jobspy_prov import JobSpyProvider
+
+    with patch("app.services.providers.jobspy_prov.scrape_jobs", return_value=pd.DataFrame()) as mock_scrape:
+        JobSpyProvider("google").search("python developer", "Munich", 10)
+
+    mock_scrape.assert_called_once_with(
+        site_name=["google"],
+        search_term="python developer",
+        location="Munich",
+        results_wanted=10,
+        hours_old=72,
+        verbose=0,
+    )
