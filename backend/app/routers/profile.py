@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-import asyncio
+import threading
+import uuid
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
+from pydantic import BaseModel
 
 from app.models.ingestion import HITLResolution, IngestionResponse, IngestionStatus
 from app.models.profile import ProfileMaster
 from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
 from app.services.extractors import extract_text
 from app.services.ingestion import IngestionService
+from app.services import job_store as store
+from app.services.suggestions import generate_suggestions
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 
@@ -18,13 +23,52 @@ _ingestion = IngestionService()
 _SUPPORTED_EXTENSIONS = (".pdf", ".docx", ".html", ".htm")
 
 
+# ── Shared async-job response schema ─────────────────────────────────────────
+
+class AsyncJobStart(BaseModel):
+    job_id: str
+    status: Literal["processing"] = "processing"
+
+
+class AsyncJobStatus(BaseModel):
+    job_id: str
+    status: str
+    step: str
+    message: str
+    progress: int
+    result: Optional[Any] = None
+
+
+def _job_to_response(job: store.AsyncJob) -> AsyncJobStatus:
+    return AsyncJobStatus(
+        job_id=job.job_id,
+        status=job.status,
+        step=job.step,
+        message=job.message,
+        progress=job.progress,
+        result=job.result,
+    )
+
+
+# ── Helper: run suggestions and finalise a completed ingest job ───────────────
+
+def _finalise_with_suggestions(job_id: str, profile: ProfileMaster) -> None:
+    store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
+    suggestions = generate_suggestions(profile)
+    profile.job_suggestions = suggestions
+    _repo.save(profile)
+    store.update_job(job_id, status="completed", step="done", message="Profile ready!", progress=100)
+
+
+# ── Ingest ────────────────────────────────────────────────────────────────────
+
 @router.post(
     "/ingest",
-    response_model=IngestionResponse,
+    response_model=AsyncJobStart,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Upload a resume (PDF, DOCX, or HTML) and start the ingestion pipeline",
+    summary="Upload a resume and start ingestion in the background",
 )
-async def ingest_resume(file: UploadFile) -> IngestionResponse:
+async def ingest_resume(file: UploadFile) -> AsyncJobStart:
     if not file.filename or not file.filename.lower().endswith(_SUPPORTED_EXTENSIONS):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -37,38 +81,88 @@ async def ingest_resume(file: UploadFile) -> IngestionResponse:
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
-    # Run the blocking LLM calls in a thread so the event loop stays free
-    result = await asyncio.get_event_loop().run_in_executor(
-        None, _ingestion.run, file.filename, resume_text
-    )
+    job_id = str(uuid.uuid4())
+    store.create_job(job_id)
+    store.update_job(job_id, step="extracting", message="Extracting text from your file…", progress=10)
 
-    if result.status == IngestionStatus.COMPLETED and result.profile:
-        _repo.save(result.profile)
+    filename = file.filename  # capture before thread
 
-    return result
+    def _run() -> None:
+        def progress(step: str, message: str, pct: int) -> None:
+            store.update_job(job_id, step=step, message=message, progress=pct)
 
+        result = _ingestion.run(filename, resume_text, progress)
+
+        if result.status == IngestionStatus.COMPLETED and result.profile:
+            _repo.delete_partial()
+            # finalise runs suggestions inline on the same background thread
+            store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
+            suggestions = generate_suggestions(result.profile)
+            result.profile.job_suggestions = suggestions
+            _repo.save(result.profile)
+            store.update_job(
+                job_id,
+                status="completed",
+                step="done",
+                message="Profile ready!",
+                progress=100,
+                result=result.model_dump(mode="json"),
+            )
+        elif result.status == IngestionStatus.HITL_REQUIRED and result.hitl_request:
+            _repo.save_partial(result.hitl_request.partial_profile)
+            store.update_job(
+                job_id,
+                status="hitl_required",
+                step="hitl",
+                message="Missing metrics found — please review.",
+                progress=90,
+                result=result.model_dump(mode="json"),
+            )
+        else:
+            store.update_job(
+                job_id,
+                status="failed",
+                step="error",
+                message=result.error or "Unknown error",
+                progress=0,
+                result=result.model_dump(mode="json"),
+            )
+
+    threading.Thread(target=_run, daemon=True).start()
+    return AsyncJobStart(job_id=job_id)
+
+
+@router.get(
+    "/ingest/{job_id}",
+    response_model=AsyncJobStatus,
+    summary="Poll the status of a background ingest job",
+)
+async def get_ingest_status(job_id: str) -> AsyncJobStatus:
+    job = store.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found or expired.")
+    return _job_to_response(job)
+
+
+# ── HITL resolve ──────────────────────────────────────────────────────────────
 
 @router.post(
     "/ingest/resolve",
-    response_model=IngestionResponse,
-    summary="Submit human-provided values to complete a paused ingestion",
+    response_model=AsyncJobStart,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Submit human-provided metrics and resume ingestion in the background",
 )
-async def resolve_hitl(resolution: HITLResolution) -> IngestionResponse:
-    """
-    Applies the user's metric corrections to the partial profile stored in the
-    HITL request, re-validates, and persists if successful.
-    """
-    if not _repo.exists():
+async def resolve_hitl(resolution: HITLResolution) -> AsyncJobStart:
+    if not _repo.partial_exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No partial profile found. Run /ingest first.",
         )
 
-    profile = _repo.load()
+    profile = _repo.load_partial()
 
     for field_path, value in resolution.resolved_fields.items():
         parts = field_path.split(".")
-        # Navigate to the parent object and set the leaf field
         obj: object = profile
         for part in parts[:-1]:
             if part.isdigit():
@@ -81,13 +175,36 @@ async def resolve_hitl(resolution: HITLResolution) -> IngestionResponse:
         else:
             setattr(obj, leaf, value)
 
-    _repo.save(profile)
-    return IngestionResponse(
-        ingestion_id=resolution.ingestion_id,
-        status=IngestionStatus.COMPLETED,
-        profile=profile,
-    )
+    _repo.delete_partial()
 
+    job_id = str(uuid.uuid4())
+    ingestion_id = resolution.ingestion_id
+    store.create_job(job_id)
+    store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=20)
+
+    def _run() -> None:
+        suggestions = generate_suggestions(profile)
+        profile.job_suggestions = suggestions
+        _repo.save(profile)
+        result = IngestionResponse(
+            ingestion_id=ingestion_id,
+            status=IngestionStatus.COMPLETED,
+            profile=profile,
+        )
+        store.update_job(
+            job_id,
+            status="completed",
+            step="done",
+            message="Profile ready!",
+            progress=100,
+            result=result.model_dump(mode="json"),
+        )
+
+    threading.Thread(target=_run, daemon=True).start()
+    return AsyncJobStart(job_id=job_id)
+
+
+# ── Profile CRUD ──────────────────────────────────────────────────────────────
 
 @router.get(
     "/",

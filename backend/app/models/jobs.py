@@ -38,3 +38,7 @@ class MatchScore(BaseModel):
 class RankedJob(BaseModel):
     posting: JobPosting
     match: MatchScore
+    found_via: Optional[str] = Field(
+        default=None,
+        description="Query that produced this job (populated by auto-search)",
+    )

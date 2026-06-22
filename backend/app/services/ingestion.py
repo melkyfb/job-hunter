@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import uuid
 from textwrap import dedent
+from typing import Callable, Optional
 
 from pydantic import ValidationError
 
@@ -15,6 +16,8 @@ from app.models.ingestion import (
     IngestionStatus,
 )
 from app.models.profile import ProfileMaster
+
+ProgressFn = Callable[[str, str, int], None]  # (step, message, progress 0-100)
 
 # Sentinel the LLM uses when it cannot determine a value with confidence.
 _UNKNOWN = "__UNKNOWN__"
@@ -91,8 +94,19 @@ def _detect_hitl_fields(profile: ProfileMaster) -> list[HITLField]:
 
 
 class IngestionService:
-    def run(self, filename: str, resume_text: str) -> IngestionResponse:
+    def run(
+        self,
+        filename: str,
+        resume_text: str,
+        progress_fn: Optional[ProgressFn] = None,
+    ) -> IngestionResponse:
+        def _p(step: str, message: str, pct: int) -> None:
+            if progress_fn:
+                progress_fn(step, message, pct)
+
         ingestion_id = uuid.uuid4()
+        _p("analyzing", "Sending to AI for analysis…", 20)
+
         messages: list[dict] = [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": _build_user_message(resume_text)},
@@ -103,7 +117,7 @@ class IngestionService:
 
         for attempt in range(1, _MAX_RETRIES + 1):
             if attempt > 1:
-                # Self-correction: feed the previous error back to the model
+                _p("analyzing", f"Retrying analysis (attempt {attempt}/{_MAX_RETRIES})…", 20 + attempt * 8)
                 messages.append({"role": "assistant", "content": last_raw})
                 messages.append(
                     {"role": "user", "content": _build_correction_message(last_raw, last_error)}
@@ -124,9 +138,12 @@ class IngestionService:
                     )
                 continue  # retry
 
+            _p("validating", "Validating structured output…", 70)
+
             # Parsed successfully — check for HITL fields
             hitl_fields = _detect_hitl_fields(profile)
             if hitl_fields:
+                _p("hitl", "Missing metrics found — please review.", 85)
                 return IngestionResponse(
                     ingestion_id=ingestion_id,
                     status=IngestionStatus.HITL_REQUIRED,
@@ -137,13 +154,13 @@ class IngestionService:
                     ),
                 )
 
+            _p("saving", "Finalizing profile…", 90)
             return IngestionResponse(
                 ingestion_id=ingestion_id,
                 status=IngestionStatus.COMPLETED,
                 profile=profile,
             )
 
-        # Unreachable, but satisfies the type checker
         return IngestionResponse(
             ingestion_id=ingestion_id,
             status=IngestionStatus.FAILED,
