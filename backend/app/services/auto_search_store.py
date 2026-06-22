@@ -192,9 +192,9 @@ def get_results_page(
 
 
 def get_summary() -> AutoSearchSummary:
+    cfg = load_config()  # read-only, separate file, no lock needed
     with _lock:
         data = _load_raw()
-        cfg = load_config()
     return AutoSearchSummary(
         enabled=cfg.enabled,
         last_run_at=data.get("last_run_at"),

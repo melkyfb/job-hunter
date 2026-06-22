@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import threading
 import threading as _threading
 import uuid
@@ -176,7 +177,8 @@ async def download_design_pdf(design_id: str) -> Response:
     version = _find_version(profile, design_id)
     ctx = build_jinja_context(profile)
     html = render_template_to_html(version.html_template, ctx)
-    pdf = render_html_to_pdf(html)
+    loop = asyncio.get_running_loop()
+    pdf = await loop.run_in_executor(None, render_html_to_pdf, html)
     filename = f"{profile.contact.full_name.replace(' ', '_')}_{version.name.replace(' ', '_')}.pdf"
     return Response(
         content=pdf,

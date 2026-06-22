@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   cleanupAutoSearch,
   getAutoSearchConfig,
@@ -172,6 +172,12 @@ export function AutoSearchPage({ onBack, designs = [] }: Props) {
   const [cleanupOpts, setCleanupOpts] = useState({ remove_not_interested: false, remove_unavailable: false })
   const [cleanupMsg, setCleanupMsg] = useState('')
 
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
   const pageSize = config?.page_size ?? 10
 
   useEffect(() => {
@@ -213,22 +219,26 @@ export function AutoSearchPage({ onBack, designs = [] }: Props) {
   }
 
   async function handleRunNow() {
+    if (!mountedRef.current) return
     setRunning(true)
     setRunProgress('Iniciando busca…')
     try {
       const { job_id } = await triggerAutoSearchRun()
-      while (true) {
+      while (mountedRef.current) {
         const status = await getIngestStatus(job_id)
+        if (!mountedRef.current) break
         setRunProgress(status.message)
         if (status.status !== 'processing') break
         await sleep(1500)
       }
-      await loadResults()
+      if (mountedRef.current) await loadResults()
     } catch {
-      setRunProgress('Erro ao executar busca.')
+      if (mountedRef.current) setRunProgress('Erro ao executar busca.')
     } finally {
-      setRunning(false)
-      setRunProgress('')
+      if (mountedRef.current) {
+        setRunning(false)
+        setRunProgress('')
+      }
     }
   }
 
