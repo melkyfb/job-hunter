@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import application, config, jobs, profile
+from app.routers import application, config, design, jobs, profile
 
 app = FastAPI(
     title="Job Hunter Assistant",
@@ -20,6 +20,7 @@ app.include_router(profile.router)
 app.include_router(jobs.router)
 app.include_router(application.router)
 app.include_router(config.router)
+app.include_router(design.router)
 
 
 @app.get("/health", tags=["system"])
