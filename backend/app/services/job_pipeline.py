@@ -7,7 +7,7 @@ from typing import Callable, Optional
 
 from app.models.jobs import JobPosting, RankedJob
 from app.models.profile import ProfileMaster
-from app.services.job_search import get_search_provider
+from app.services.job_search import SearchProvider, get_search_provider
 from app.services.match_scoring import score_match
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def run_pipeline(
     location: str,
     max_results: int = 20,
     progress_fn: Optional[ProgressFn] = None,
+    provider: Optional[SearchProvider] = None,   # NEW — injected by scheduler
 ) -> list[RankedJob]:
     """
     Agentic pipeline:
@@ -36,8 +37,8 @@ def run_pipeline(
 
     # Step 1 — Search
     _p("searching", f'Searching for "{query}" in {location}…', 10)
-    provider = get_search_provider()
-    postings: list[JobPosting] = provider.search(query, location, max_results)
+    _provider = provider if provider is not None else get_search_provider()
+    postings: list[JobPosting] = _provider.search(query, location, max_results)
     logger.info("SearchAgent found %d postings", len(postings))
 
     if not postings:

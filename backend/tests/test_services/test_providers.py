@@ -64,3 +64,92 @@ def test_mock_provider_respects_max_results():
     from app.services.providers.mock import MockProvider
     results = MockProvider().search("python", "Munich", 1)
     assert len(results) == 1
+
+
+# ── MultiProvider ─────────────────────────────────────────────────────────────
+
+from unittest.mock import Mock
+
+
+def test_multi_provider_merges_results_from_all_providers():
+    from app.services.job_search import MultiProvider
+
+    p1 = Mock()
+    p1.search.return_value = [_make_posting("https://site-a.com/1")]
+    p2 = Mock()
+    p2.search.return_value = [_make_posting("https://site-b.com/1")]
+
+    multi = MultiProvider([p1, p2])
+    results = multi.search("python", "Munich", 5)
+
+    assert len(results) == 2
+    urls = {r.url for r in results}
+    assert "https://site-a.com/1" in urls
+    assert "https://site-b.com/1" in urls
+
+
+def test_multi_provider_deduplicates_by_url():
+    from app.services.job_search import MultiProvider
+
+    same_url = "https://same.com/job/1"
+    p1 = Mock()
+    p1.search.return_value = [_make_posting(same_url)]
+    p2 = Mock()
+    p2.search.return_value = [_make_posting(same_url)]
+
+    multi = MultiProvider([p1, p2])
+    results = multi.search("python", "Munich", 5)
+
+    assert len(results) == 1
+    assert results[0].url == same_url
+
+
+def test_multi_provider_continues_when_one_provider_fails():
+    from app.services.job_search import MultiProvider
+
+    bad = Mock()
+    bad.search.side_effect = RuntimeError("rate limited")
+    good = Mock()
+    good.search.return_value = [_make_posting("https://good.com/job/1")]
+
+    multi = MultiProvider([bad, good])
+    results = multi.search("python", "Munich", 5)
+
+    assert len(results) == 1
+    assert results[0].url == "https://good.com/job/1"
+
+
+def test_get_multi_provider_falls_back_to_mock_when_empty():
+    from app.services.job_search import get_multi_provider
+    from app.services.providers.mock import MockProvider
+
+    multi = get_multi_provider([])
+    # Should still be usable — delegate to MockProvider
+    results = multi.search("python", "Munich", 2)
+    assert len(results) == 2
+
+
+def test_get_multi_provider_skips_unknown_names():
+    from app.services.job_search import get_multi_provider
+
+    # Should not raise — unknown name is skipped
+    multi = get_multi_provider(["nonexistent_provider", "mock"])
+    results = multi.search("python", "Munich", 1)
+    assert len(results) >= 1
+
+
+# ── run_pipeline provider param ───────────────────────────────────────────────
+
+def test_run_pipeline_uses_injected_provider():
+    from unittest.mock import patch
+    from app.models.profile import ProfileMaster, ContactInfo
+    from app.services.job_pipeline import run_pipeline
+
+    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
+    mock_provider = Mock()
+    mock_provider.search.return_value = []  # empty → pipeline returns []
+
+    result = run_pipeline(profile, "python", "Munich", max_results=5, provider=mock_provider)
+
+    mock_provider.search.assert_called_once_with("python", "Munich", 5)
+    assert result == []
