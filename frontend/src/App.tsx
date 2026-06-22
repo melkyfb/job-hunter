@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getProfile, type ProfileMaster } from './api/client'
+import { getProfile, getAutoSearchSummary, type ProfileMaster } from './api/client'
 import { IngestPage } from './pages/IngestPage'
 import { JobSearchPage } from './pages/JobSearchPage'
 import { AutoSearchPage } from './pages/AutoSearchPage'
@@ -19,6 +19,24 @@ function TopBar() {
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading')
   const [profile, setProfile] = useState<ProfileMaster | null>(null)
+  const [autoSearchBadge, setAutoSearchBadge] = useState(0)
+
+  useEffect(() => {
+    async function checkSummary() {
+      try {
+        const summary = await getAutoSearchSummary()
+        setAutoSearchBadge(summary.new_count)
+      } catch { /* silently ignore */ }
+    }
+    checkSummary()
+    const id = setInterval(checkSummary, 60_000)
+    return () => clearInterval(id)
+  }, [])
+
+  function handleAutoSearch() {
+    setAutoSearchBadge(0)
+    setAppState('auto_search')
+  }
 
   function loadProfile() {
     return getProfile().then(p => { setProfile(p); setAppState('has_profile') })
@@ -82,9 +100,10 @@ export default function App() {
           <ProfilePage
             profile={profile}
             onSearchJobs={() => setAppState('job_search')}
-            onAutoSearch={() => setAppState('auto_search')}
+            onAutoSearch={handleAutoSearch}
             onReimport={() => setAppState('no_profile')}
             onProfileUpdated={p => setProfile(p)}
+            autoSearchBadge={autoSearchBadge}
           />
         )}
       </main>

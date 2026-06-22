@@ -9,6 +9,7 @@ interface Props {
   onAutoSearch: () => void
   onReimport: () => void
   onProfileUpdated: (p: ProfileMaster) => void
+  autoSearchBadge?: number
 }
 
 // ── Skill level visual ────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, onProfileUpdated }: Props) {
+export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, onProfileUpdated, autoSearchBadge }: Props) {
   const [downloading, setDownloading] = useState(false)
 
   function handleDesignSaved(version: DesignVersion) {
@@ -179,6 +180,15 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
               style={{ padding: '8px 18px', background: 'none', color: 'var(--accent)', border: '1px solid var(--accent-border)', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
             >
               ⚡ Auto Search
+              {(autoSearchBadge ?? 0) > 0 && (
+                <span style={{
+                  marginLeft: 6, background: '#ef4444', color: 'white',
+                  borderRadius: '50%', fontSize: 10, fontWeight: 700,
+                  padding: '1px 5px', verticalAlign: 'middle',
+                }}>
+                  {autoSearchBadge}
+                </span>
+              )}
             </button>
           )}
           <button
