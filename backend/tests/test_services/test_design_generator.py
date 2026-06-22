@@ -109,7 +109,31 @@ def test_generate_resume_template_self_corrects_on_bad_jinja():
     from app.models.profile import ProfileMaster, ContactInfo
     profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
 
-    bad_html = "<html>{% broken %}</html>"
+    bad_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 20mm; }
+body { font-family: Arial, sans-serif; font-size: 11pt; color: #222; }
+h1 { font-size: 22pt; font-weight: bold; }
+h2 { font-size: 13pt; }
+.contact { font-size: 10pt; color: #555; margin-bottom: 12px; }
+.section { margin-bottom: 16px; }
+.skill { background: #e8f0fe; padding: 2px 8px; border-radius: 4px; font-size: 10pt; }
+</style>
+</head>
+<body>
+<h1>{{ profile.contact.full_name }}</h1>
+<div class="contact">{{ profile.contact.email }}</div>
+{% broken_jinja_tag %}
+<div class="section"><h2>Experience</h2>
+{% for exp in profile.work_experiences %}
+<p>{{ exp.role }} at {{ exp.company }}</p>
+{% endfor %}
+</div>
+</body>
+</html>"""
     mock_client = MagicMock()
     responses = [
         MagicMock(choices=[MagicMock(message=MagicMock(content=json.dumps({"html_template": bad_html})))]),
@@ -117,7 +141,8 @@ def test_generate_resume_template_self_corrects_on_bad_jinja():
     ]
     mock_client.chat.completions.create.side_effect = responses
 
-    with patch("app.services.design_generator.get_llm_client", return_value=mock_client):
+    with patch("app.services.design_generator.get_llm_client", return_value=mock_client), \
+         patch("app.services.design_generator._check_design_intent"):
         result = generate_resume_template("Modern blue", profile)
 
     assert mock_client.chat.completions.create.call_count == 2
@@ -128,7 +153,31 @@ def test_generate_resume_template_raises_after_max_retries():
     from app.models.profile import ProfileMaster, ContactInfo
     profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
 
-    bad_html = "<html>{% broken %}</html>"
+    bad_html = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 20mm; }
+body { font-family: Arial, sans-serif; font-size: 11pt; color: #222; }
+h1 { font-size: 22pt; font-weight: bold; }
+h2 { font-size: 13pt; }
+.contact { font-size: 10pt; color: #555; margin-bottom: 12px; }
+.section { margin-bottom: 16px; }
+.skill { background: #e8f0fe; padding: 2px 8px; border-radius: 4px; font-size: 10pt; }
+</style>
+</head>
+<body>
+<h1>{{ profile.contact.full_name }}</h1>
+<div class="contact">{{ profile.contact.email }}</div>
+{% broken_jinja_tag %}
+<div class="section"><h2>Experience</h2>
+{% for exp in profile.work_experiences %}
+<p>{{ exp.role }} at {{ exp.company }}</p>
+{% endfor %}
+</div>
+</body>
+</html>"""
     mock_client = MagicMock()
     mock_client.chat.completions.create.return_value = MagicMock(
         choices=[MagicMock(message=MagicMock(content=json.dumps({"html_template": bad_html})))]

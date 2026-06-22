@@ -35,7 +35,7 @@ class DesignGenerationResponse(BaseModel):
             raise ValueError(
                 f"HTML muito curto para ser um template completo: {len(v)} chars (mínimo 500)"
             )
-        if "<meta charset" not in v.lower() and "utf-8" not in v.lower():
+        if "<meta charset" not in v.lower():
             raise ValueError('HTML deve incluir <meta charset="UTF-8"> no <head>')
         return v
 
@@ -151,7 +151,6 @@ def _check_design_intent(prompt: str) -> None:
 
 def _clean_html(html: str) -> str:
     """Remove control characters and collapse excessive whitespace from generated HTML."""
-    import re
     # Remove non-printable control characters except tab (\x09) and newline (\x0a)
     html = re.sub(r"[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f]", "", html)
     # Replace literal escape sequences \n and \r that the LLM may have written as text
@@ -171,7 +170,7 @@ def _parse_and_validate(raw: str, dummy_ctx: dict) -> tuple[str, str]:
     """
     try:
         parsed = DesignGenerationResponse.model_validate_json(raw)
-    except (ValidationError, Exception) as exc:
+    except Exception as exc:
         return "", str(exc)
 
     template = _clean_html(parsed.html_template)
