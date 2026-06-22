@@ -214,3 +214,75 @@ def test_jobspy_provider_calls_scrape_jobs_with_correct_args():
         hours_old=72,
         verbose=0,
     )
+
+
+# ── StepstoneScraper ──────────────────────────────────────────────────────────
+
+def _make_text_el(text: str):
+    el = Mock()
+    el.inner_text.return_value = text
+    return el
+
+
+def _make_link_el(href: str):
+    el = Mock()
+    el.get_attribute.return_value = href
+    return el
+
+
+def test_stepstone_card_to_posting_maps_fields():
+    from app.services.providers.stepstone import _stepstone_card_to_posting
+
+    card = Mock()
+    card.query_selector.side_effect = lambda sel: {
+        '[data-at="job-item-title"]': _make_text_el("Python Engineer"),
+        '[data-at="job-item-company-name"]': _make_text_el("TechCo GmbH"),
+        '[data-at="job-item-location"]': _make_text_el("Munich, Germany"),
+        'a[data-at="job-item-title"]': _make_link_el("/jobs/python-engineer-123"),
+        'time[datetime]': None,
+    }.get(sel)
+
+    posting = _stepstone_card_to_posting(card)
+
+    assert posting.title == "Python Engineer"
+    assert posting.company == "TechCo GmbH"
+    assert posting.location == "Munich, Germany"
+    assert posting.source == "stepstone"
+    assert posting.url == "https://www.stepstone.de/jobs/python-engineer-123"
+
+
+def test_stepstone_card_to_posting_handles_absolute_url():
+    from app.services.providers.stepstone import _stepstone_card_to_posting
+
+    card = Mock()
+    card.query_selector.side_effect = lambda sel: {
+        '[data-at="job-item-title"]': _make_text_el("Dev"),
+        '[data-at="job-item-company-name"]': _make_text_el("Co"),
+        '[data-at="job-item-location"]': _make_text_el("Munich"),
+        'a[data-at="job-item-title"]': _make_link_el("https://www.stepstone.de/jobs/abc-123"),
+        'time[datetime]': None,
+    }.get(sel)
+
+    posting = _stepstone_card_to_posting(card)
+    assert posting.url == "https://www.stepstone.de/jobs/abc-123"
+
+
+# ── XingScraper ───────────────────────────────────────────────────────────────
+
+def test_xing_card_to_posting_maps_fields():
+    from app.services.providers.xing import _xing_card_to_posting
+
+    card = Mock()
+    card.query_selector.side_effect = lambda sel: {
+        '[data-testid="job-listing-item-title"]': _make_text_el("Backend Dev"),
+        '[data-testid="job-listing-item-company-name"]': _make_text_el("StartupAG"),
+        '[data-testid="job-listing-item-location"]': _make_text_el("Munich"),
+        'a[data-testid="job-listing-item-title-link"]': _make_link_el("https://www.xing.com/jobs/123"),
+    }.get(sel)
+
+    posting = _xing_card_to_posting(card)
+
+    assert posting.title == "Backend Dev"
+    assert posting.company == "StartupAG"
+    assert posting.source == "xing"
+    assert posting.url == "https://www.xing.com/jobs/123"
