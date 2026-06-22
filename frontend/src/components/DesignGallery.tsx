@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { updateDesign, deleteDesign, getDesignPreviewUrl, getDesignPdfUrl, type DesignVersion } from '../api/client'
+import {
+  updateDesign,
+  deleteDesign,
+  getDesignPreviewUrl,
+  getDesignPdfUrl,
+  regenerateDesign,
+  getIngestStatus,
+  type DesignVersion,
+} from '../api/client'
 
 interface Props {
   versions: DesignVersion[]
@@ -7,22 +15,75 @@ interface Props {
   activeId: string | null
   onUpdated: (version: DesignVersion) => void
   onDeleted: (id: string) => void
+  onRegenerated?: () => void
 }
 
-function DesignCard({ version, isActive, onSetDefault, onDelete }: {
+type CardState = 'idle' | 'regenerating' | 'error'
+
+function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
+
+function DesignCard({
+  version,
+  isActive,
+  onSetDefault,
+  onDelete,
+  onRegenerated,
+}: {
   version: DesignVersion
   isActive: boolean
   onSetDefault: () => void
   onDelete: () => void
+  onRegenerated?: () => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [cardState, setCardState] = useState<CardState>('idle')
+  const [regenError, setRegenError] = useState('')
+
+  async function handleRegenerate() {
+    setCardState('regenerating')
+    setRegenError('')
+    try {
+      const { job_id } = await regenerateDesign(version.id)
+      while (true) {
+        const status = await getIngestStatus(job_id)
+        if (status.status === 'completed') {
+          setCardState('idle')
+          onRegenerated?.()
+          return
+        }
+        if (status.status === 'failed') {
+          setRegenError(status.message || 'Regeneration failed.')
+          setCardState('error')
+          return
+        }
+        await sleep(1000)
+      }
+    } catch (err: unknown) {
+      setRegenError(err instanceof Error ? err.message : 'Regeneration failed.')
+      setCardState('error')
+    }
+  }
+
+  const isRegenerating = cardState === 'regenerating'
+  const canRegenerate = !!version.prompt && cardState !== 'regenerating'
 
   return (
     <div style={{
       border: `1px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
       borderRadius: 10, overflow: 'hidden', background: 'var(--bg)',
-      display: 'flex', flexDirection: 'column',
+      display: 'flex', flexDirection: 'column', position: 'relative',
     }}>
+      {/* Spinner overlay while regenerating */}
+      {isRegenerating && (
+        <div style={{
+          position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 10, borderRadius: 10,
+        }}>
+          <span style={{ color: '#fff', fontSize: 12 }}>Regenerando…</span>
+        </div>
+      )}
+
       {/* Scaled iframe thumbnail */}
       <div style={{ height: 140, overflow: 'hidden', position: 'relative', background: '#f5f5f5' }}>
         <iframe
@@ -66,6 +127,15 @@ function DesignCard({ version, isActive, onSetDefault, onDelete }: {
               Set default
             </button>
           )}
+          {canRegenerate && (
+            <button
+              onClick={handleRegenerate}
+              disabled={isRegenerating}
+              style={{ fontSize: 11, background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0 }}
+            >
+              Regenerar
+            </button>
+          )}
           {confirmDelete ? (
             <>
               <button onClick={onDelete} style={{ fontSize: 11, background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}>Confirm</button>
@@ -77,12 +147,16 @@ function DesignCard({ version, isActive, onSetDefault, onDelete }: {
             </button>
           )}
         </div>
+
+        {cardState === 'error' && (
+          <p style={{ fontSize: 10, color: '#ef4444', margin: '4px 0 0', lineHeight: 1.3 }}>{regenError}</p>
+        )}
       </div>
     </div>
   )
 }
 
-export function DesignGallery({ versions, type, activeId, onUpdated, onDeleted }: Props) {
+export function DesignGallery({ versions, type, activeId, onUpdated, onDeleted, onRegenerated }: Props) {
   const filtered = versions.filter(v => v.type === type)
 
   if (filtered.length === 0) return null
@@ -106,6 +180,7 @@ export function DesignGallery({ versions, type, activeId, onUpdated, onDeleted }
           isActive={v.id === activeId}
           onSetDefault={() => handleSetDefault(v)}
           onDelete={() => handleDelete(v.id)}
+          onRegenerated={onRegenerated}
         />
       ))}
     </div>
