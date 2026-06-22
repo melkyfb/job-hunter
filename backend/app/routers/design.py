@@ -176,11 +176,7 @@ async def seed_default_designs_endpoint() -> AsyncDesignStart:
 
     def _run() -> None:
         try:
-            completed = 0
-
             def _progress(done: int, total: int) -> None:
-                nonlocal completed
-                completed = done
                 store.update_job(
                     job_id,
                     step="designs",
