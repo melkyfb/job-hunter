@@ -191,7 +191,8 @@ h2 { font-size: 13pt; }
     assert mock_client.chat.completions.create.call_count == 3
 
 
-def test_generate_cover_letter_template_basic():
+@patch("app.services.design_generator._check_design_intent")
+def test_generate_cover_letter_template_basic(mock_intent_check):
     from app.models.profile import ProfileMaster, ContactInfo
     profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
 
@@ -201,7 +202,8 @@ def test_generate_cover_letter_template_basic():
     assert "letter_body" in result
 
 
-def test_generate_cover_letter_template_with_inherited_css():
+@patch("app.services.design_generator._check_design_intent")
+def test_generate_cover_letter_template_with_inherited_css(mock_intent_check):
     from app.models.profile import ProfileMaster, ContactInfo
     profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
 

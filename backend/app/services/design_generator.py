@@ -174,6 +174,7 @@ def _parse_and_validate(raw: str, dummy_ctx: dict) -> tuple[str, str]:
         return "", str(exc)
 
     template = _clean_html(parsed.html_template)
+    # _clean_html only removes control chars / collapses whitespace; structural tags and length remain valid
 
     try:
         render_template_to_html(template, dummy_ctx)
