@@ -170,10 +170,20 @@ export function getDesignPdfUrl(designId: string) {
 
 // ── Application ───────────────────────────────────────────────────────────────
 
-export async function generateApplication(job: JobPosting, match: MatchScore) {
+export async function generateApplication(
+  job: JobPosting,
+  match: MatchScore,
+  resumeDesignId?: string | null,
+  coverLetterDesignId?: string | null,
+) {
   return request<ApplicationPackage>('/application/generate', {
     method: 'POST',
-    body: JSON.stringify({ job, match }),
+    body: JSON.stringify({
+      job,
+      match,
+      resume_design_id: resumeDesignId ?? null,
+      cover_letter_design_id: coverLetterDesignId ?? null,
+    }),
   })
 }
 
