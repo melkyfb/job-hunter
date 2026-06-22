@@ -50,6 +50,22 @@ class Settings(BaseSettings):
         description="Model name as listed by the local server (e.g. 'llama3.2', 'mistral', 'phi-4').",
     )
 
+    # ── Job Search ────────────────────────────────────────────────────────────
+    search_provider: str = Field(
+        default="mock",
+        description="'adzuna' for real jobs, 'mock' for development without API keys.",
+    )
+    adzuna_app_id: Optional[str] = Field(default=None)
+    adzuna_api_key: Optional[str] = Field(default=None)
+    adzuna_country: str = Field(default="de", description="ISO country code: de, gb, us…")
+
+    # ── Search cache ──────────────────────────────────────────────────────────
+    search_cache_ttl_hours: int = Field(
+        default=2,
+        ge=0,
+        description="How long (hours) to cache job search results. Set 0 to disable.",
+    )
+
     # ── Shared parameters ─────────────────────────────────────────────────────
     llm_temperature: float = Field(default=0.0, ge=0.0, le=2.0)
     llm_max_retries: int = Field(default=3, ge=1, le=10)

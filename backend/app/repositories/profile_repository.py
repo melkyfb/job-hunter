@@ -9,6 +9,7 @@ from app.models.profile import ProfileMaster
 
 _STORAGE_DIR = Path.home() / ".job_hunter"
 _PROFILE_PATH = _STORAGE_DIR / "profile_master.json"
+_PARTIAL_PATH = _STORAGE_DIR / "profile_partial.json"  # temporary HITL state
 
 
 class ProfileNotFoundError(Exception):
@@ -16,7 +17,8 @@ class ProfileNotFoundError(Exception):
 
 
 class ProfileRepository:
-    def __init__(self, path: Path = _PROFILE_PATH) -> None:
+    def __init__(self, path: Path = _PROFILE_PATH, partial_path: Path = _PARTIAL_PATH) -> None:
+        self._partial_path = partial_path
         self._path = path
         self._path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -44,3 +46,30 @@ class ProfileRepository:
     def delete(self) -> None:
         if self._path.exists():
             self._path.unlink()
+
+    # ── Partial profile (HITL temporary state) ───────────────────────────────
+
+    def save_partial(self, profile: ProfileMaster) -> None:
+        self._partial_path.parent.mkdir(parents=True, exist_ok=True)
+        self._partial_path.write_text(
+            profile.model_dump_json(indent=2, exclude_none=True),
+            encoding="utf-8",
+        )
+
+    def load_partial(self) -> ProfileMaster:
+        if not self._partial_path.exists():
+            raise ProfileNotFoundError(
+                "No partial profile found. Run /ingest first."
+            )
+        try:
+            data = json.loads(self._partial_path.read_text(encoding="utf-8"))
+            return ProfileMaster.model_validate(data)
+        except ValidationError as exc:
+            raise ValueError(f"Partial profile is corrupted: {exc}") from exc
+
+    def partial_exists(self) -> bool:
+        return self._partial_path.exists()
+
+    def delete_partial(self) -> None:
+        if self._partial_path.exists():
+            self._partial_path.unlink()
