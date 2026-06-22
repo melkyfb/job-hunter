@@ -15,33 +15,40 @@ _scheduler = BackgroundScheduler(timezone="UTC")
 _JOB_ID = "auto_search"
 
 
-def _run() -> None:
-    """Background thread body: run pipeline for each active entry and upsert results."""
+def _run() -> str:
+    """Background thread body: run pipeline for each active entry and upsert results.
+    Returns a human-readable summary message."""
     try:
         config = load_config()
-        if not config.enabled or not config.entries:
-            return
+        if not config.enabled:
+            return "Busca automática desativada. Ative nas configurações para buscar vagas."
+        if not config.entries:
+            return "Nenhuma vaga configurada. Adicione títulos de vagas nas configurações."
 
         from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
         from app.services.job_pipeline import run_pipeline
-        from app.services.job_search import get_multi_provider   # NEW
+        from app.services.job_search import get_multi_provider
 
         try:
             profile = ProfileRepository().load()
         except ProfileNotFoundError:
             logger.warning("Auto-search: no profile found, skipping run")
-            return
+            return "Nenhum perfil encontrado. Importe seu currículo primeiro."
 
-        multi = get_multi_provider(config.providers)   # NEW — build once per run
+        multi = get_multi_provider(config.providers)
 
         run_id = f"auto-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}"
-        for entry in config.entries:
-            if not entry.active:
-                continue
+        total_new = 0
+        active_entries = [e for e in config.entries if e.active]
+        if not active_entries:
+            return "Nenhuma vaga ativa. Ative ao menos uma vaga nas configurações."
+
+        for entry in active_entries:
             query = f"{entry.title} {' '.join(entry.keywords)}"
             try:
                 results = run_pipeline(profile, query, config.location, max_results=20, provider=multi)
                 new = upsert_jobs(results, run_id=run_id, found_via=entry.title)
+                total_new += new
                 logger.info("Auto-search '%s': %d results, %d new", entry.title, len(results), new)
             except Exception as exc:
                 logger.warning("Auto-search entry '%s' failed: %s", entry.title, exc)
@@ -49,8 +56,10 @@ def _run() -> None:
         now = datetime.now(timezone.utc)
         next_run = now + timedelta(hours=config.interval_hours)
         update_run_times(last_run_at=now, next_run_at=next_run)
+        return f"Busca concluída! {total_new} nova{'s' if total_new != 1 else ''} vaga{'s' if total_new != 1 else ''} encontrada{'s' if total_new != 1 else ''}."
     except Exception as exc:
         logger.error("Auto-search _run() error: %s", exc, exc_info=True)
+        raise
 
 
 def start_scheduler(interval_hours: int = 2) -> None:
@@ -88,12 +97,12 @@ def trigger_now(job_id: str) -> None:
 
     def _wrapped():
         try:
-            _run()
+            summary = _run()
             store.update_job(
                 job_id,
                 status="completed",
                 step="done",
-                message="Busca concluída!",
+                message=summary,
                 progress=100,
             )
         except Exception as exc:

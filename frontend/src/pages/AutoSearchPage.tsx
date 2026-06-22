@@ -168,6 +168,7 @@ export function AutoSearchPage({ onBack, designs = [] }: Props) {
   const [loading, setLoading] = useState(false)
   const [running, setRunning] = useState(false)
   const [runProgress, setRunProgress] = useState('')
+  const [runResult, setRunResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const [showCleanup, setShowCleanup] = useState(false)
   const [cleanupOpts, setCleanupOpts] = useState({ remove_not_interested: false, remove_unavailable: false })
   const [cleanupMsg, setCleanupMsg] = useState('')
@@ -221,19 +222,34 @@ export function AutoSearchPage({ onBack, designs = [] }: Props) {
   async function handleRunNow() {
     if (!mountedRef.current) return
     setRunning(true)
+    setRunResult(null)
     setRunProgress('Iniciando busca…')
     try {
       const { job_id } = await triggerAutoSearchRun()
+      let lastStatus = 'processing'
+      let lastMessage = ''
       while (mountedRef.current) {
         const status = await getIngestStatus(job_id)
         if (!mountedRef.current) break
         setRunProgress(status.message)
+        lastStatus = status.status
+        lastMessage = status.message
         if (status.status !== 'processing') break
         await sleep(1500)
       }
-      if (mountedRef.current) await loadResults()
-    } catch {
-      if (mountedRef.current) setRunProgress('Erro ao executar busca.')
+      if (mountedRef.current) {
+        await loadResults()
+        if (lastStatus === 'completed') {
+          setRunResult({ ok: true, msg: lastMessage || 'Busca concluída!' })
+        } else if (lastStatus === 'failed') {
+          setRunResult({ ok: false, msg: lastMessage || 'Busca falhou.' })
+        }
+      }
+    } catch (err: unknown) {
+      if (mountedRef.current) {
+        const msg = err instanceof Error ? err.message : 'Erro ao executar busca.'
+        setRunResult({ ok: false, msg })
+      }
     } finally {
       if (mountedRef.current) {
         setRunning(false)
@@ -287,6 +303,11 @@ export function AutoSearchPage({ onBack, designs = [] }: Props) {
 
       {running && runProgress && (
         <p style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 12 }}>{runProgress}</p>
+      )}
+      {!running && runResult && (
+        <p style={{ fontSize: 12, color: runResult.ok ? 'var(--accent)' : '#ef4444', marginBottom: 12 }}>
+          {runResult.msg}
+        </p>
       )}
 
       {/* Config panel */}
