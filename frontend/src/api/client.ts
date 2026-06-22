@@ -160,6 +160,65 @@ export async function deleteDesign(designId: string) {
   return request<void>(`/profile/design/${designId}`, { method: 'DELETE' })
 }
 
+// ── Auto Search API ───────────────────────────────────────────────────────────
+
+export async function getAutoSearchConfig() {
+  return request<AutoSearchConfig>('/auto-search/config')
+}
+
+export async function saveAutoSearchConfig(config: AutoSearchConfig) {
+  return request<AutoSearchConfig>('/auto-search/config', {
+    method: 'PUT',
+    body: JSON.stringify(config),
+  })
+}
+
+export async function getAutoSearchSummary() {
+  return request<AutoSearchSummary>('/auto-search/summary')
+}
+
+export async function triggerAutoSearchRun() {
+  return request<AutoSearchRunStart>('/auto-search/run', { method: 'POST' })
+}
+
+export async function getAutoSearchResults(
+  page: number,
+  pageSize: number,
+  statusFilter: string,
+  sort: 'score' | 'recent' = 'score',
+) {
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+    status_filter: statusFilter,
+    sort,
+  })
+  return request<AutoSearchResultsPage>(`/auto-search/results?${params}`)
+}
+
+export async function markAutoSearchSeen() {
+  return request<void>('/auto-search/mark-seen', { method: 'POST' })
+}
+
+export async function setJobStatus(urlHash: string, status: JobStatus, notes?: string) {
+  return request<{ url_hash: string; status: JobStatus }>(`/auto-search/jobs/${urlHash}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, notes: notes ?? null }),
+  })
+}
+
+export async function cleanupAutoSearch(params: {
+  before_date?: string
+  remove_not_interested?: boolean
+  remove_unavailable?: boolean
+}) {
+  const q = new URLSearchParams()
+  if (params.before_date) q.set('before_date', params.before_date)
+  if (params.remove_not_interested) q.set('remove_not_interested', 'true')
+  if (params.remove_unavailable) q.set('remove_unavailable', 'true')
+  return request<{ removed: number }>(`/auto-search/cleanup?${q}`, { method: 'DELETE' })
+}
+
 export function getDesignPreviewUrl(designId: string) {
   return `/api/profile/design/${designId}/preview-html`
 }
@@ -340,6 +399,63 @@ export interface DesignVersion {
   inherit_from_design_id?: string
   created_at: string
   is_default: boolean
+}
+
+// ── Auto Search ──────────────────────────────────────────────────────────────
+
+export type JobStatus =
+  | 'NONE'
+  | 'NOT_INTERESTED'
+  | 'APPLIED'
+  | 'INTERVIEWING'
+  | 'OFFER_RECEIVED'
+
+export interface SearchEntry {
+  id: string
+  title: string
+  keywords: string[]
+  active: boolean
+  custom: boolean
+}
+
+export interface AutoSearchConfig {
+  enabled: boolean
+  interval_hours: number
+  location: string
+  page_size: number
+  entries: SearchEntry[]
+}
+
+export interface AutoSearchSummary {
+  enabled: boolean
+  last_run_at: string | null
+  next_run_at: string | null
+  new_count: number
+  total_count: number
+}
+
+export interface SavedJobWithStatus {
+  url_hash: string
+  posting: JobPosting
+  match: MatchScore
+  found_at: string
+  last_seen_at: string
+  found_via: string
+  status: JobStatus
+  notes: string | null
+}
+
+export interface AutoSearchResultsPage {
+  jobs: SavedJobWithStatus[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export interface AutoSearchRunStart {
+  job_id: string
+  status: 'processing'
 }
 
 export interface ApplicationPackage {
