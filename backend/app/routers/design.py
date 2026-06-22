@@ -189,7 +189,10 @@ async def seed_default_designs_endpoint() -> AsyncDesignStart:
             with _profile_lock:
                 p = _repo.load()
                 # Remove existing default (numbered) designs
-                p.design_versions = [v for v in p.design_versions if not _DEFAULT_NAME_RE.match(v.name)]
+                p.design_versions = [
+                    v for v in p.design_versions
+                    if not _DEFAULT_NAME_RE.match(v.name) and not (v.is_default and v.type == "resume")
+                ]
                 p.design_versions.extend(new_designs)
                 if new_designs:
                     p.active_resume_design_id = new_designs[0].id
