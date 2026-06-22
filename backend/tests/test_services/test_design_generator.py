@@ -286,3 +286,69 @@ def test_retry_uses_informative_message_on_pydantic_failure():
     # Find the user correction message
     correction_msgs = [m for m in second_call_messages if m["role"] == "user" and "rejected" in m["content"]]
     assert len(correction_msgs) == 1
+
+
+# ── Intent check integration ──────────────────────────────────────────────────
+
+def _make_intent_mock(is_design: bool, hint: str = "") -> MagicMock:
+    """Returns a mock LLM client whose first call returns an intent response."""
+    mock_client = MagicMock()
+    intent_response = MagicMock()
+    intent_response.choices[0].message.content = json.dumps({
+        "is_design_prompt": is_design,
+        "hint": hint,
+    })
+    mock_client.chat.completions.create.return_value = intent_response
+    return mock_client
+
+
+def test_intent_check_rejects_non_design_prompt():
+    """generate_resume_template raises ValueError with hint when prompt is not a design brief."""
+    from app.models.profile import ProfileMaster, ContactInfo
+    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
+
+    hint = "Descreva o visual: cores, fontes, layout de colunas, estilo profissional ou criativo."
+    mock_client = _make_intent_mock(is_design=False, hint=hint)
+
+    with patch("app.services.design_generator.get_llm_client", return_value=mock_client):
+        with pytest.raises(ValueError, match="Descreva o visual"):
+            generate_resume_template("olá", profile)
+
+    # Only ONE LLM call made (the intent check) — generation was never started
+    assert mock_client.chat.completions.create.call_count == 1
+
+
+def test_intent_check_passes_design_prompt():
+    """When intent check approves, generation proceeds normally."""
+    from app.models.profile import ProfileMaster, ContactInfo
+    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
+
+    mock_client = MagicMock()
+    # First call: intent check returns True
+    intent_resp = MagicMock()
+    intent_resp.choices[0].message.content = json.dumps({"is_design_prompt": True, "hint": ""})
+    # Second call: generation returns valid HTML
+    gen_resp = MagicMock()
+    gen_resp.choices[0].message.content = json.dumps({"html_template": _VALID_RESUME_HTML})
+    mock_client.chat.completions.create.side_effect = [intent_resp, gen_resp]
+
+    with patch("app.services.design_generator.get_llm_client", return_value=mock_client):
+        result = generate_resume_template("Sidebar azul escuro, fonte sans-serif, layout limpo", profile)
+
+    assert "<!DOCTYPE" in result
+    assert mock_client.chat.completions.create.call_count == 2  # intent + generation
+
+
+def test_intent_check_cover_letter_rejects_non_design():
+    """generate_cover_letter_template also raises ValueError on non-design input."""
+    from app.models.profile import ProfileMaster, ContactInfo
+    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
+
+    hint = "Descreva o visual da carta: cores, fontes, estilo."
+    mock_client = _make_intent_mock(is_design=False, hint=hint)
+
+    with patch("app.services.design_generator.get_llm_client", return_value=mock_client):
+        with pytest.raises(ValueError, match="Descreva o visual"):
+            generate_cover_letter_template("test", profile, inherit_from_html=None)
+
+    assert mock_client.chat.completions.create.call_count == 1
