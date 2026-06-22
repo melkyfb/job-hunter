@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import threading
 import threading as _threading
 import uuid
@@ -13,6 +14,7 @@ from pydantic import BaseModel
 from app.models.design import DesignVersion
 from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
 from app.services import job_store as store
+from app.services.default_designs import seed_default_designs
 from app.services.design_generator import generate_cover_letter_template, generate_resume_template
 from app.services.playwright_renderer import (
     build_jinja_context,
@@ -146,6 +148,107 @@ async def generate_cover_letter_design(req: GenerateCoverLetterDesignRequest) ->
                 message="Cover letter design ready!",
                 progress=100,
                 result=version.model_dump(mode="json"),
+            )
+        except Exception as exc:
+            store.update_job(job_id, status="failed", step="error", message=str(exc), progress=0)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return AsyncDesignStart(job_id=job_id)
+
+
+# ── Helper: is this a default (numbered) design name? ────────────────────────
+
+_DEFAULT_NAME_RE = re.compile(r"^\d+\. ")
+
+
+# ── New endpoints ─────────────────────────────────────────────────────────────
+
+@router.post("/seed-defaults", response_model=AsyncDesignStart, status_code=status.HTTP_202_ACCEPTED)
+async def seed_default_designs_endpoint() -> AsyncDesignStart:
+    try:
+        profile = _repo.load()
+    except ProfileNotFoundError:
+        raise HTTPException(status_code=404, detail="No profile found.")
+
+    job_id = str(uuid.uuid4())
+    store.create_job(job_id)
+    store.update_job(job_id, step="designs", message="Gerando designs padrão…", progress=5)
+
+    def _run() -> None:
+        try:
+            completed = 0
+
+            def _progress(done: int, total: int) -> None:
+                nonlocal completed
+                completed = done
+                store.update_job(
+                    job_id,
+                    step="designs",
+                    message=f"Gerando designs padrão… ({done}/{total})",
+                    progress=int(done / total * 90),
+                )
+
+            new_designs = seed_default_designs(progress_fn=_progress)
+
+            with _profile_lock:
+                p = _repo.load()
+                # Remove existing default (numbered) designs
+                p.design_versions = [v for v in p.design_versions if not _DEFAULT_NAME_RE.match(v.name)]
+                p.design_versions.extend(new_designs)
+                if new_designs:
+                    p.active_resume_design_id = new_designs[0].id
+                _repo.save(p)
+
+            store.update_job(
+                job_id,
+                status="completed",
+                step="done",
+                message="Designs padrão gerados!",
+                progress=100,
+                result=[v.model_dump(mode="json") for v in new_designs],
+            )
+        except Exception as exc:
+            store.update_job(job_id, status="failed", step="error", message=str(exc), progress=0)
+
+    threading.Thread(target=_run, daemon=True).start()
+    return AsyncDesignStart(job_id=job_id)
+
+
+@router.post("/{design_id}/regenerate", response_model=AsyncDesignStart, status_code=status.HTTP_202_ACCEPTED)
+async def regenerate_design(design_id: str) -> AsyncDesignStart:
+    try:
+        profile = _repo.load()
+    except ProfileNotFoundError:
+        raise HTTPException(status_code=404, detail="No profile found.")
+
+    version = _find_version(profile, design_id)
+    if not version.prompt:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="This design has no stored prompt and cannot be regenerated.",
+        )
+
+    prompt = version.prompt
+
+    job_id = str(uuid.uuid4())
+    store.create_job(job_id)
+    store.update_job(job_id, step="generating", message="Regenerating design…", progress=20)
+
+    def _run() -> None:
+        try:
+            new_html = generate_resume_template(prompt, skip_intent_check=True)
+            with _profile_lock:
+                p = _repo.load()
+                target = _find_version(p, design_id)
+                target.html_template = new_html
+                _repo.save(p)
+            store.update_job(
+                job_id,
+                status="completed",
+                step="done",
+                message="Design regenerated!",
+                progress=100,
+                result={"design_id": design_id},
             )
         except Exception as exc:
             store.update_job(job_id, status="failed", step="error", message=str(exc), progress=0)
