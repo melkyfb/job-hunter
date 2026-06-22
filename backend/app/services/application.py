@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 from typing import Optional
 from uuid import UUID
 
@@ -8,6 +9,8 @@ from app.models.jobs import JobPosting, MatchScore
 from app.models.profile import ProfileMaster
 from app.services.cover_letter import generate_cover_letter
 from app.services.resume_renderer import render_resume_pdf
+
+logger = logging.getLogger(__name__)
 
 
 def _to_b64(data: bytes) -> str:
@@ -58,8 +61,8 @@ def _render_resume(
             ctx = build_jinja_context(profile)
             html = render_template_to_html(version.html_template, ctx)
             return render_html_to_pdf(html)
-        except Exception:
-            pass  # fall through to ReportLab
+        except Exception as exc:
+            logger.warning("Playwright render failed for resume, falling back to ReportLab: %s", exc)
 
     return render_resume_pdf(profile, highlight_keywords=match.keywords_found)
 
@@ -90,8 +93,8 @@ def _render_cover_letter(
                 contact_location=c.location or "",
             )
             return render_html_to_pdf(html)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Playwright render failed for cover letter, falling back to ReportLab: %s", exc)
 
     return _render_cover_letter_pdf_reportlab(text, profile)
 

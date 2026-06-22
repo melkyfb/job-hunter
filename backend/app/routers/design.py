@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import threading as _threading
 import uuid
 from typing import Any, Literal, Optional
 
@@ -22,6 +23,7 @@ from app.services.playwright_renderer import (
 router = APIRouter(prefix="/profile/design", tags=["design"])
 
 _repo = ProfileRepository()
+_profile_lock = _threading.Lock()
 
 
 # ── Request / Response models ─────────────────────────────────────────────────
@@ -81,9 +83,10 @@ async def generate_resume_design(req: GenerateResumeDesignRequest) -> AsyncDesig
                 type="resume",
                 html_template=html_template,
             )
-            p = _repo.load()
-            p.design_versions.append(version)
-            _repo.save(p)
+            with _profile_lock:
+                p = _repo.load()
+                p.design_versions.append(version)
+                _repo.save(p)
             store.update_job(
                 job_id,
                 status="completed",
@@ -131,9 +134,10 @@ async def generate_cover_letter_design(req: GenerateCoverLetterDesignRequest) ->
                 html_template=html_template,
                 inherit_from_design_id=inherit_from_design_id,
             )
-            p = _repo.load()
-            p.design_versions.append(version)
-            _repo.save(p)
+            with _profile_lock:
+                p = _repo.load()
+                p.design_versions.append(version)
+                _repo.save(p)
             store.update_job(
                 job_id,
                 status="completed",

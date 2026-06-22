@@ -112,6 +112,7 @@ export function DesignEditor({ type, profile, inheritFromDesignId, onSaved }: Pr
         <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 12, height: 480 }}>
           <iframe
             src={getDesignPreviewUrl(previewDesignId)}
+            sandbox="allow-same-origin allow-scripts"
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="Design preview"
           />

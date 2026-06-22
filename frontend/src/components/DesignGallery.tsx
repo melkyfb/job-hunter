@@ -28,6 +28,7 @@ function DesignCard({ version, isActive, onSetDefault, onDelete }: {
         <iframe
           src={getDesignPreviewUrl(version.id)}
           title={version.name}
+          sandbox="allow-same-origin allow-scripts"
           style={{
             width: '550%',
             height: '550%',
