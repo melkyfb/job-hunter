@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import uuid
-
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app

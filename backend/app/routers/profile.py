@@ -100,6 +100,7 @@ async def ingest_resume(file: UploadFile) -> AsyncJobStart:
 
         if result.status == IngestionStatus.COMPLETED and result.profile:
             _repo.delete_partial()
+            store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
             # Run suggestions + template seeding concurrently
             with ThreadPoolExecutor(max_workers=2) as pool:
                 suggestions_future = pool.submit(generate_suggestions, result.profile)
@@ -110,7 +111,6 @@ async def ingest_resume(file: UploadFile) -> AsyncJobStart:
             except Exception as exc:
                 logger.warning("seed_default_designs failed: %s", exc)
                 templates = []
-            store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
             result.profile.job_suggestions = suggestions
             if templates:
                 result.profile.design_versions = templates
