@@ -186,14 +186,16 @@ def _parse_and_validate(raw: str, dummy_ctx: dict) -> tuple[str, str]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def generate_resume_template(prompt: str, profile: ProfileMaster) -> str:
+def generate_resume_template(prompt: str, skip_intent_check: bool = False) -> str:
     """
     Call the LLM to generate a Jinja2 HTML resume template from a user's prompt.
-    Raises ValueError immediately if the prompt is not a design brief.
+    Set skip_intent_check=True to bypass the intent classifier (used for trusted default prompts).
+    Raises ValueError immediately if the prompt is not a design brief (when skip_intent_check=False).
     Validates with Pydantic + Jinja2; self-corrects up to _MAX_RETRIES times.
     Raises RuntimeError if all retries fail.
     """
-    _check_design_intent(prompt)
+    if not skip_intent_check:
+        _check_design_intent(prompt)
 
     client = get_llm_client()
     dummy_ctx = build_dummy_context()

@@ -77,7 +77,7 @@ async def generate_resume_design(req: GenerateResumeDesignRequest) -> AsyncDesig
 
     def _run() -> None:
         try:
-            html_template = generate_resume_template(prompt, profile)
+            html_template = generate_resume_template(prompt)
             version = DesignVersion(
                 name=name,
                 prompt=prompt,

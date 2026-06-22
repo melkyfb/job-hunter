@@ -94,11 +94,9 @@ def _make_mock_client(html: str):
 
 
 def test_generate_resume_template_returns_valid_html():
-    from app.models.profile import ProfileMaster, ContactInfo
-    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
-
-    with patch("app.services.design_generator.get_llm_client", return_value=_make_mock_client(_VALID_RESUME_HTML)):
-        result = generate_resume_template("Modern blue tech resume", profile)
+    with patch("app.services.design_generator.get_llm_client", return_value=_make_mock_client(_VALID_RESUME_HTML)), \
+         patch("app.services.design_generator._check_design_intent"):
+        result = generate_resume_template("Modern blue tech resume")
 
     assert "<!DOCTYPE html>" in result
     assert "{{ profile.contact.full_name }}" in result
@@ -106,9 +104,6 @@ def test_generate_resume_template_returns_valid_html():
 
 def test_generate_resume_template_self_corrects_on_bad_jinja():
     """First response has broken Jinja2; second response is valid."""
-    from app.models.profile import ProfileMaster, ContactInfo
-    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
-
     bad_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -143,16 +138,13 @@ h2 { font-size: 13pt; }
 
     with patch("app.services.design_generator.get_llm_client", return_value=mock_client), \
          patch("app.services.design_generator._check_design_intent"):
-        result = generate_resume_template("Modern blue", profile)
+        result = generate_resume_template("Modern blue")
 
     assert mock_client.chat.completions.create.call_count == 2
     assert "<!DOCTYPE html>" in result
 
 
 def test_generate_resume_template_raises_after_max_retries():
-    from app.models.profile import ProfileMaster, ContactInfo
-    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
-
     bad_html = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -186,7 +178,7 @@ h2 { font-size: 13pt; }
     with patch("app.services.design_generator.get_llm_client", return_value=mock_client), \
          patch("app.services.design_generator._check_design_intent"):
         with pytest.raises(RuntimeError, match="failed to generate a valid"):
-            generate_resume_template("Modern blue", profile)
+            generate_resume_template("Modern blue")
 
     assert mock_client.chat.completions.create.call_count == 3
 
@@ -266,9 +258,6 @@ def test_clean_html_removes_literal_escape_sequences():
 
 def test_retry_uses_informative_message_on_pydantic_failure():
     """When Pydantic validation fails, the retry message includes the specific error."""
-    from app.models.profile import ProfileMaster, ContactInfo
-    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
-
     # First response: HTML that fails Pydantic (too short, missing charset)
     bad_html = "<html><head></head><body>short</body></html>"
     mock_client = MagicMock()
@@ -280,7 +269,7 @@ def test_retry_uses_informative_message_on_pydantic_failure():
 
     with patch("app.services.design_generator.get_llm_client", return_value=mock_client), \
          patch("app.services.design_generator._check_design_intent"):
-        result = generate_resume_template("Blue sidebar", profile)
+        result = generate_resume_template("Blue sidebar")
 
     assert mock_client.chat.completions.create.call_count == 2
     # The second call's messages should contain the error from the first attempt
@@ -306,15 +295,12 @@ def _make_intent_mock(is_design: bool, hint: str = "") -> MagicMock:
 
 def test_intent_check_rejects_non_design_prompt():
     """generate_resume_template raises ValueError with hint when prompt is not a design brief."""
-    from app.models.profile import ProfileMaster, ContactInfo
-    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
-
     hint = "Descreva o visual: cores, fontes, layout de colunas, estilo profissional ou criativo."
     mock_client = _make_intent_mock(is_design=False, hint=hint)
 
     with patch("app.services.design_generator.get_llm_client", return_value=mock_client):
         with pytest.raises(ValueError, match="Descreva o visual"):
-            generate_resume_template("olá", profile)
+            generate_resume_template("olá")
 
     # Only ONE LLM call made (the intent check) — generation was never started
     assert mock_client.chat.completions.create.call_count == 1
@@ -322,9 +308,6 @@ def test_intent_check_rejects_non_design_prompt():
 
 def test_intent_check_passes_design_prompt():
     """When intent check approves, generation proceeds normally."""
-    from app.models.profile import ProfileMaster, ContactInfo
-    profile = ProfileMaster(contact=ContactInfo(full_name="Ada", email="ada@example.com"))
-
     mock_client = MagicMock()
     # First call: intent check returns True
     intent_resp = MagicMock()
@@ -335,7 +318,7 @@ def test_intent_check_passes_design_prompt():
     mock_client.chat.completions.create.side_effect = [intent_resp, gen_resp]
 
     with patch("app.services.design_generator.get_llm_client", return_value=mock_client):
-        result = generate_resume_template("Sidebar azul escuro, fonte sans-serif, layout limpo", profile)
+        result = generate_resume_template("Sidebar azul escuro, fonte sans-serif, layout limpo")
 
     assert "<!DOCTYPE" in result
     assert mock_client.chat.completions.create.call_count == 2  # intent + generation
@@ -354,3 +337,26 @@ def test_intent_check_cover_letter_rejects_non_design():
             generate_cover_letter_template("test", profile, inherit_from_html=None)
 
     assert mock_client.chat.completions.create.call_count == 1
+
+
+def test_generate_resume_template_no_profile_param():
+    """generate_resume_template must NOT accept a profile positional arg."""
+    import inspect
+    sig = inspect.signature(generate_resume_template)
+    assert "profile" not in sig.parameters
+
+
+def test_generate_resume_template_skip_intent_check_bypasses_llm_call():
+    """skip_intent_check=True skips the intent classifier and calls generation directly."""
+    gen_client = MagicMock()
+    gen_client.chat.completions.create.return_value = MagicMock(
+        choices=[MagicMock(message=MagicMock(content=json.dumps({"html_template": _VALID_RESUME_HTML})))]
+    )
+
+    with patch("app.services.design_generator.get_llm_client", return_value=gen_client), \
+         patch("app.services.design_generator._check_design_intent") as mock_intent:
+        result = generate_resume_template("a design brief", skip_intent_check=True)
+
+    assert "<!doctype" in result.lower()
+    # Verify intent check was NOT called
+    mock_intent.assert_not_called()
