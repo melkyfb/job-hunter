@@ -160,6 +160,14 @@ export async function deleteDesign(designId: string) {
   return request<void>(`/profile/design/${designId}`, { method: 'DELETE' })
 }
 
+export async function seedDefaultDesigns() {
+  return request<AsyncJobStart>('/profile/design/seed-defaults', { method: 'POST' })
+}
+
+export async function regenerateDesign(designId: string) {
+  return request<AsyncJobStart>(`/profile/design/${designId}/regenerate`, { method: 'POST' })
+}
+
 // ── Auto Search API ───────────────────────────────────────────────────────────
 
 export async function getAutoSearchConfig() {

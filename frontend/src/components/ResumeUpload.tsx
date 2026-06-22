@@ -10,6 +10,7 @@ const STEP_LABELS: Record<string, string> = {
   analyzing: 'Sending to AI for analysis…',
   validating: 'Validating structured output…',
   suggestions: 'Generating job suggestions…',
+  designs: 'Gerando designs padrão…',
   saving: 'Finalizing your profile…',
   hitl: 'Missing metrics found — please review.',
   done: 'Profile ready!',
