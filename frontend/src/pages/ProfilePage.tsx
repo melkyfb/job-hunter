@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { downloadMasterResume, type ProfileMaster, type WorkExperience, type Skill, type DesignVersion } from '../api/client'
+import { downloadMasterResume, seedDefaultDesigns, getIngestStatus, getProfile, type ProfileMaster, type WorkExperience, type Skill, type DesignVersion } from '../api/client'
 import { DesignEditor } from '../components/DesignEditor'
 import { DesignGallery } from '../components/DesignGallery'
 
@@ -112,6 +112,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, onProfileUpdated, autoSearchBadge }: Props) {
   const [downloading, setDownloading] = useState(false)
+  const [seedingAll, setSeedingAll] = useState(false)
+  const [seedAllMsg, setSeedAllMsg] = useState('')
+  const [seedAllError, setSeedAllError] = useState('')
 
   function handleDesignSaved(version: DesignVersion) {
     onProfileUpdated({ ...profile, design_versions: [...profile.design_versions, version] })
@@ -133,6 +136,35 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
       active_resume_design_id: profile.active_resume_design_id === id ? null : profile.active_resume_design_id,
       active_cover_letter_design_id: profile.active_cover_letter_design_id === id ? null : profile.active_cover_letter_design_id,
     })
+  }
+
+  async function handleSeedAll() {
+    setSeedingAll(true)
+    setSeedAllMsg('Iniciando…')
+    setSeedAllError('')
+    try {
+      const { job_id } = await seedDefaultDesigns()
+      while (true) {
+        const status = await getIngestStatus(job_id)
+        setSeedAllMsg(status.message)
+        if (status.status === 'completed') {
+          const updated = await getProfile()
+          onProfileUpdated(updated)
+          setSeedingAll(false)
+          setSeedAllMsg('')
+          return
+        }
+        if (status.status === 'failed') {
+          setSeedAllError(status.message || 'Failed to regenerate designs.')
+          setSeedingAll(false)
+          return
+        }
+        await new Promise(r => setTimeout(r, 1000))
+      }
+    } catch (err: unknown) {
+      setSeedAllError(err instanceof Error ? err.message : 'Failed.')
+      setSeedingAll(false)
+    }
   }
 
   async function handleDownload() {
@@ -278,12 +310,36 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
 
       {/* ── Resume Design ── */}
       <Section title="Resume Design">
+        {/* Regenerar todos button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <button
+            onClick={handleSeedAll}
+            disabled={seedingAll}
+            style={{
+              fontSize: 12, padding: '4px 12px', borderRadius: 6,
+              border: '1px solid var(--border)', background: 'var(--bg)',
+              color: 'var(--text)', cursor: seedingAll ? 'default' : 'pointer',
+            }}
+          >
+            {seedingAll ? 'Gerando…' : 'Regenerar todos os designs'}
+          </button>
+          {seedingAll && (
+            <span style={{ fontSize: 11, color: 'var(--text)' }}>{seedAllMsg}</span>
+          )}
+        </div>
+        {seedAllError && (
+          <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>{seedAllError}</p>
+        )}
         <DesignGallery
           versions={profile.design_versions}
           type="resume"
           activeId={profile.active_resume_design_id}
           onUpdated={handleDesignUpdated}
           onDeleted={handleDesignDeleted}
+          onRegenerated={async () => {
+            const updated = await getProfile()
+            onProfileUpdated(updated)
+          }}
         />
         <DesignEditor
           type="resume"
