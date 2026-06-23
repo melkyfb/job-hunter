@@ -64,17 +64,6 @@ const NEUMO_INSET: React.CSSProperties = {
   maxWidth: 260,
 }
 
-const BTN_PRIMARY: React.CSSProperties = {
-  padding: '8px 18px',
-  background: 'var(--blue-primary)',
-  color: 'white',
-  border: 'none',
-  borderRadius: 10,
-  fontWeight: 700,
-  cursor: 'pointer',
-  fontSize: 13,
-  boxShadow: 'var(--neumo-raised-sm)',
-}
 
 const BTN_GHOST: React.CSSProperties = {
   padding: '7px 14px',
