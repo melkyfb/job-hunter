@@ -231,7 +231,7 @@ function PromptEditor({ label, value, defaultValue, onChange, onSave }: PromptEd
         style={NEUMO_INSET}
       />
       {saveError && (
-        <p style={{ fontSize: 11, color: '#ef4444', margin: '4px 0 0' }}>{saveError}</p>
+        <p style={{ fontSize: 11, color: 'var(--color-error)', margin: '4px 0 0' }}>{saveError}</p>
       )}
     </div>
   )
@@ -301,7 +301,7 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
           >
             ⚡ Auto Search
             {(autoSearchBadge ?? 0) > 0 && (
-              <span style={{ marginLeft: 6, background: '#ef4444', color: 'white', borderRadius: '50%', fontSize: 10, fontWeight: 700, padding: '1px 5px', verticalAlign: 'middle' }}>
+              <span style={{ marginLeft: 6, background: 'var(--color-error)', color: 'white', borderRadius: '50%', fontSize: 10, fontWeight: 700, padding: '1px 5px', verticalAlign: 'middle' }}>
                 {autoSearchBadge}
               </span>
             )}
