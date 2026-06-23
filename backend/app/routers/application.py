@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
@@ -27,15 +26,9 @@ class ApplicationPackage(BaseModel):
 class GenerateRequest(BaseModel):
     job: JobPosting
     match: MatchScore
-    resume_design_id: Optional[str] = None
-    cover_letter_design_id: Optional[str] = None
 
 
-@router.post(
-    "/generate",
-    response_model=ApplicationPackage,
-    summary="Generate a tailored resume + cover letter for a specific job",
-)
+@router.post("/generate", response_model=ApplicationPackage)
 async def generate_application(req: GenerateRequest) -> ApplicationPackage:
     try:
         profile = _repo.load()
@@ -44,28 +37,21 @@ async def generate_application(req: GenerateRequest) -> ApplicationPackage:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No profile found. Upload your resume first.",
         )
-
     try:
         result = await asyncio.get_event_loop().run_in_executor(
             None,
-            lambda: generate_application_package(
-                profile, req.job, req.match,
-                resume_design_id=req.resume_design_id,
-                cover_letter_design_id=req.cover_letter_design_id,
-            )
+            lambda: generate_application_package(profile, req.job, req.match),
         )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Generation failed: {exc}",
         )
-
     return ApplicationPackage(**result)
 
 
 @router.get(
     "/master-resume",
-    summary="Download the master resume PDF (not tailored to any specific job)",
     response_class=Response,
     responses={200: {"content": {"application/pdf": {}}}},
 )
@@ -73,15 +59,11 @@ async def download_master_resume() -> Response:
     try:
         profile = _repo.load()
     except ProfileNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No profile found. Upload your resume first.",
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No profile found.")
 
     pdf_bytes = await asyncio.get_event_loop().run_in_executor(
         None, generate_master_resume, profile
     )
-
     filename = f"{profile.contact.full_name.replace(' ', '_')}_Resume.pdf"
     return Response(
         content=pdf_bytes,

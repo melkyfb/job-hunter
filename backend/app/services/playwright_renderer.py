@@ -2,14 +2,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from jinja2 import BaseLoader, Environment, StrictUndefined
 from playwright.sync_api import sync_playwright
 
-from app.models.profile import ProfileMaster
+
+def render_html_to_pdf(html: str) -> bytes:
+    """Convert an HTML string to PDF bytes using Playwright + Chromium."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page()
+        page.set_content(html, wait_until="networkidle")
+        pdf = page.pdf(format="A4", print_background=True)
+        browser.close()
+    return pdf
 
 
-def build_jinja_context(profile: ProfileMaster) -> dict[str, Any]:
+# ── Legacy Jinja2 helpers (used by design system — removed in Task 6) ─────────
+
+def build_jinja_context(profile: Any) -> dict[str, Any]:
     """Converts ProfileMaster into plain-dict context safe for Jinja2 templates."""
+    from jinja2 import BaseLoader, Environment, StrictUndefined  # noqa: F401
     c = profile.contact
     return {
         "profile": {
@@ -123,6 +134,7 @@ def build_dummy_cover_letter_context() -> dict[str, Any]:
 
 def render_template_to_html(template: str, context: dict[str, Any]) -> str:
     """Render a Jinja2 HTML template string with the given context dict."""
+    from jinja2 import BaseLoader, Environment, StrictUndefined
     env = Environment(loader=BaseLoader(), undefined=StrictUndefined)
     t = env.from_string(template)
     return t.render(**context)
@@ -152,14 +164,3 @@ def render_cover_letter_template_to_html(
         "job": {"title": job_title, "company": job_company},
     }
     return render_template_to_html(template, ctx)
-
-
-def render_html_to_pdf(html: str) -> bytes:
-    """Convert an HTML string to PDF bytes using Playwright + Chromium."""
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        page = browser.new_page()
-        page.set_content(html, wait_until="networkidle")
-        pdf = page.pdf(format="A4", print_background=True)
-        browser.close()
-    return pdf
