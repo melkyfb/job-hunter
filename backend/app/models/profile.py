@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.design import DesignVersion
+from app.services.prompt_defaults import DEFAULT_CV_PROMPT, DEFAULT_CL_PROMPT
 
 
 class SkillLevel(str, Enum):
@@ -135,15 +135,9 @@ class ProfileMaster(BaseModel):
         default_factory=list,
         description="Job titles + keywords generated from this profile during ingestion",
     )
-    design_versions: list[DesignVersion] = Field(
-        default_factory=list,
-        description="Saved resume and cover letter HTML design templates",
+    reference_text: str = Field(
+        default="",
+        description="Compiled text from all uploaded reference files (LLM-filtered)",
     )
-    active_resume_design_id: Optional[str] = Field(
-        default=None,
-        description="ID of the DesignVersion used by default for resume generation",
-    )
-    active_cover_letter_design_id: Optional[str] = Field(
-        default=None,
-        description="ID of the DesignVersion used by default for cover letter generation",
-    )
+    cv_prompt: str = Field(default=DEFAULT_CV_PROMPT)
+    cover_letter_prompt: str = Field(default=DEFAULT_CL_PROMPT)
