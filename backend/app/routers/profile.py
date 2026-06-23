@@ -3,17 +3,15 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Literal, Optional
+from typing import Any, List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from app.models.ingestion import HITLResolution, IngestionResponse, IngestionStatus
 from app.models.profile import ProfileMaster
 from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
-from app.services.default_designs import seed_default_designs
-from app.services.extractors import extract_text
+from app.services.file_processor import compile_reference_text
 from app.services.ingestion import IngestionService
 from app.services import job_store as store
 from app.services.suggestions import generate_suggestions
@@ -25,10 +23,8 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 _repo = ProfileRepository()
 _ingestion = IngestionService()
 
-_SUPPORTED_EXTENSIONS = (".pdf", ".docx", ".html", ".htm")
+_MAX_FILES = 20
 
-
-# ── Shared async-job response schema ─────────────────────────────────────────
 
 class AsyncJobStart(BaseModel):
     job_id: str
@@ -44,6 +40,11 @@ class AsyncJobStatus(BaseModel):
     result: Optional[Any] = None
 
 
+class UpdatePromptsRequest(BaseModel):
+    cv_prompt: Optional[str] = None
+    cover_letter_prompt: Optional[str] = None
+
+
 def _job_to_response(job: store.AsyncJob) -> AsyncJobStatus:
     return AsyncJobStatus(
         job_id=job.job_id,
@@ -55,67 +56,57 @@ def _job_to_response(job: store.AsyncJob) -> AsyncJobStatus:
     )
 
 
-# ── Helper: run suggestions and finalise a completed ingest job ───────────────
-
-def _finalise_with_suggestions(job_id: str, profile: ProfileMaster) -> None:
+def _finalise_with_suggestions(job_id: str, profile: ProfileMaster, reference_text: str) -> None:
     store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
     suggestions = generate_suggestions(profile)
     profile.job_suggestions = suggestions
+    profile.reference_text = reference_text
     _repo.save(profile)
     store.update_job(job_id, status="completed", step="done", message="Profile ready!", progress=100)
 
-
-# ── Ingest ────────────────────────────────────────────────────────────────────
 
 @router.post(
     "/ingest",
     response_model=AsyncJobStart,
     status_code=status.HTTP_202_ACCEPTED,
-    summary="Upload a resume and start ingestion in the background",
+    summary="Upload documents and start ingestion in the background",
 )
-async def ingest_resume(file: UploadFile) -> AsyncJobStart:
-    if not file.filename or not file.filename.lower().endswith(_SUPPORTED_EXTENSIONS):
+async def ingest_resume(files: List[UploadFile] = File(...)) -> AsyncJobStart:
+    if len(files) > _MAX_FILES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unsupported file type. Accepted: {', '.join(_SUPPORTED_EXTENSIONS)}",
+            detail=f"Maximum {_MAX_FILES} files allowed.",
+        )
+    if not files:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="At least one file is required.",
         )
 
-    content = await file.read()
-    try:
-        resume_text = extract_text(file.filename, content)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    # Read all file content eagerly (must happen in async context)
+    file_pairs: list[tuple[str, bytes]] = []
+    for upload in files:
+        content = await upload.read()
+        file_pairs.append((upload.filename or "unnamed", content))
 
     job_id = str(uuid.uuid4())
     store.create_job(job_id)
-    store.update_job(job_id, step="extracting", message="Extracting text from your file…", progress=10)
-
-    filename = file.filename  # capture before thread
+    store.update_job(job_id, step="extracting", message="Extracting and filtering documents…", progress=5)
 
     def _run() -> None:
         def ingest_progress(step: str, message: str, pct: int) -> None:
-            store.update_job(job_id, step=step, message=message, progress=pct)
+            # Scale to 10–75 to leave room for suggestions step
+            scaled = 10 + int(pct * 0.65)
+            store.update_job(job_id, step=step, message=message, progress=scaled)
 
-        result = _ingestion.run(filename, resume_text, ingest_progress)
+        store.update_job(job_id, step="extracting", message="Filtering documents for relevant content…", progress=10)
+        reference_text = compile_reference_text(file_pairs)
+
+        result = _ingestion.run(reference_text, ingest_progress)
 
         if result.status == IngestionStatus.COMPLETED and result.profile:
             _repo.delete_partial()
-            store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=80)
-            # Run suggestions + template seeding concurrently
-            with ThreadPoolExecutor(max_workers=2) as pool:
-                suggestions_future = pool.submit(generate_suggestions, result.profile)
-                templates_future = pool.submit(seed_default_designs)
-            suggestions = suggestions_future.result()
-            try:
-                templates = templates_future.result()
-            except Exception as exc:
-                logger.warning("seed_default_designs failed: %s", exc)
-                templates = []
-            result.profile.job_suggestions = suggestions
-            if templates:
-                result.profile.design_versions = templates
-                result.profile.active_resume_design_id = templates[0].id
-            _repo.save(result.profile)
+            _finalise_with_suggestions(job_id, result.profile, reference_text)
             store.update_job(
                 job_id,
                 status="completed",
@@ -125,6 +116,7 @@ async def ingest_resume(file: UploadFile) -> AsyncJobStart:
                 result=result.model_dump(mode="json"),
             )
         elif result.status == IngestionStatus.HITL_REQUIRED and result.hitl_request:
+            result.hitl_request.partial_profile.reference_text = reference_text
             _repo.save_partial(result.hitl_request.partial_profile)
             store.update_job(
                 job_id,
@@ -160,8 +152,6 @@ async def get_ingest_status(job_id: str) -> AsyncJobStatus:
     return _job_to_response(job)
 
 
-# ── HITL resolve ──────────────────────────────────────────────────────────────
-
 @router.post(
     "/ingest/resolve",
     response_model=AsyncJobStart,
@@ -191,6 +181,7 @@ async def resolve_hitl(resolution: HITLResolution) -> AsyncJobStart:
         else:
             setattr(obj, leaf, value)
 
+    reference_text = profile.reference_text  # preserved from ingest step
     _repo.delete_partial()
 
     job_id = str(uuid.uuid4())
@@ -199,23 +190,8 @@ async def resolve_hitl(resolution: HITLResolution) -> AsyncJobStart:
     store.update_job(job_id, step="suggestions", message="Generating job suggestions…", progress=20)
 
     def _run() -> None:
-        # Run suggestions + template seeding concurrently
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            suggestions_future = pool.submit(generate_suggestions, profile)
-            templates_future = pool.submit(seed_default_designs)
-
-        suggestions = suggestions_future.result()
-        try:
-            templates = templates_future.result()
-        except Exception as exc:
-            logger.warning("seed_default_designs failed in resolve: %s", exc)
-            templates = []
-
+        suggestions = generate_suggestions(profile)
         profile.job_suggestions = suggestions
-        if templates:
-            profile.design_versions = templates
-            profile.active_resume_design_id = templates[0].id
-
         _repo.save(profile)
         result = IngestionResponse(
             ingestion_id=ingestion_id,
@@ -235,13 +211,7 @@ async def resolve_hitl(resolution: HITLResolution) -> AsyncJobStart:
     return AsyncJobStart(job_id=job_id)
 
 
-# ── Profile CRUD ──────────────────────────────────────────────────────────────
-
-@router.get(
-    "/",
-    response_model=ProfileMaster,
-    summary="Return the current master profile",
-)
+@router.get("/", response_model=ProfileMaster)
 async def get_profile() -> ProfileMaster:
     try:
         return _repo.load()
@@ -249,21 +219,26 @@ async def get_profile() -> ProfileMaster:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
-@router.put(
-    "/",
-    response_model=ProfileMaster,
-    summary="Replace the master profile (used after HITL editing in the UI)",
-)
+@router.put("/", response_model=ProfileMaster)
 async def update_profile(profile: ProfileMaster) -> ProfileMaster:
     _repo.save(profile)
     return profile
 
 
-@router.delete(
-    "/",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
-    summary="Delete the stored profile",
-)
+@router.patch("/prompts", response_model=ProfileMaster)
+async def update_prompts(req: UpdatePromptsRequest) -> ProfileMaster:
+    try:
+        profile = _repo.load()
+    except ProfileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+    if req.cv_prompt is not None:
+        profile.cv_prompt = req.cv_prompt
+    if req.cover_letter_prompt is not None:
+        profile.cover_letter_prompt = req.cover_letter_prompt
+    _repo.save(profile)
+    return profile
+
+
+@router.delete("/", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_profile() -> None:
     _repo.delete()

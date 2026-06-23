@@ -17,11 +17,9 @@ from app.models.ingestion import (
 )
 from app.models.profile import ProfileMaster
 
-ProgressFn = Callable[[str, str, int], None]  # (step, message, progress 0-100)
+ProgressFn = Callable[[str, str, int], None]
 
-# Sentinel the LLM uses when it cannot determine a value with confidence.
 _UNKNOWN = "__UNKNOWN__"
-
 _MAX_RETRIES = 3
 
 _SYSTEM_PROMPT = dedent(f"""
@@ -43,13 +41,13 @@ _SYSTEM_PROMPT = dedent(f"""
 _SCHEMA_HINT = ProfileMaster.model_json_schema()
 
 
-def _build_user_message(resume_text: str) -> str:
+def _build_user_message(reference_text: str) -> str:
     return dedent(f"""
         Schema to follow:
         {json.dumps(_SCHEMA_HINT, indent=2)}
 
-        Resume text:
-        {resume_text}
+        Candidate documents:
+        {reference_text}
     """).strip()
 
 
@@ -77,7 +75,6 @@ def _call_llm(messages: list[dict]) -> str:
 
 
 def _detect_hitl_fields(profile: ProfileMaster) -> list[HITLField]:
-    """Find XYZ metrics that the LLM marked as unknown."""
     missing: list[HITLField] = []
     for exp_idx, exp in enumerate(profile.work_experiences):
         for ach_idx, ach in enumerate(exp.achievements):
@@ -96,8 +93,7 @@ def _detect_hitl_fields(profile: ProfileMaster) -> list[HITLField]:
 class IngestionService:
     def run(
         self,
-        filename: str,
-        resume_text: str,
+        reference_text: str,
         progress_fn: Optional[ProgressFn] = None,
     ) -> IngestionResponse:
         def _p(step: str, message: str, pct: int) -> None:
@@ -109,7 +105,7 @@ class IngestionService:
 
         messages: list[dict] = [
             {"role": "system", "content": _SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_message(resume_text)},
+            {"role": "user", "content": _build_user_message(reference_text)},
         ]
 
         last_raw = ""
@@ -136,11 +132,10 @@ class IngestionService:
                         status=IngestionStatus.FAILED,
                         error=f"Model failed to produce a valid profile after {_MAX_RETRIES} attempts: {last_error}",
                     )
-                continue  # retry
+                continue
 
             _p("validating", "Validating structured output…", 70)
 
-            # Parsed successfully — check for HITL fields
             hitl_fields = _detect_hitl_fields(profile)
             if hitl_fields:
                 _p("hitl", "Missing metrics found — please review.", 85)

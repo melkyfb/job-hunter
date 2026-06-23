@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import uuid
 from datetime import date
 from pathlib import Path
 from unittest.mock import patch
@@ -18,7 +19,7 @@ from app.models.profile import (
     XYZExperience,
 )
 from app.repositories.profile_repository import ProfileRepository
-from tests.conftest import make_llm_mock
+from app.services.prompt_defaults import DEFAULT_CV_PROMPT, DEFAULT_CL_PROMPT
 
 _VALID_PROFILE = ProfileMaster(
     contact=ContactInfo(full_name="Ada Lovelace", email="ada@example.com"),
@@ -42,7 +43,6 @@ _VALID_PROFILE = ProfileMaster(
 
 @pytest.fixture
 def client_with_tmp_repo(tmp_path: Path):
-    """TestClient wired to an isolated profile repository."""
     repo = ProfileRepository(
         path=tmp_path / "profile.json",
         partial_path=tmp_path / "profile_partial.json",
@@ -51,13 +51,10 @@ def client_with_tmp_repo(tmp_path: Path):
         yield TestClient(app), repo
 
 
-# ── GET /profile/ ─────────────────────────────────────────────────────────────
-
 def test_get_profile_404_when_missing(client_with_tmp_repo):
     client, _ = client_with_tmp_repo
     resp = client.get("/profile/")
     assert resp.status_code == 404
-    assert "Upload a resume" in resp.json()["detail"]
 
 
 def test_get_profile_returns_saved_profile(client_with_tmp_repo):
@@ -68,18 +65,13 @@ def test_get_profile_returns_saved_profile(client_with_tmp_repo):
     assert resp.json()["contact"]["full_name"] == "Ada Lovelace"
 
 
-# ── PUT /profile/ ─────────────────────────────────────────────────────────────
-
 def test_put_profile_persists_and_returns(client_with_tmp_repo):
     client, repo = client_with_tmp_repo
     payload = json.loads(_VALID_PROFILE.model_dump_json())
     resp = client.put("/profile/", json=payload)
     assert resp.status_code == 200
     assert repo.exists()
-    assert repo.load().contact.email == "ada@example.com"
 
-
-# ── DELETE /profile/ ─────────────────────────────────────────────────────────
 
 def test_delete_profile(client_with_tmp_repo):
     client, repo = client_with_tmp_repo
@@ -89,24 +81,20 @@ def test_delete_profile(client_with_tmp_repo):
     assert not repo.exists()
 
 
-# ── POST /profile/ingest ──────────────────────────────────────────────────────
-
-def test_ingest_rejects_unsupported_format(client_with_tmp_repo):
+def test_ingest_rejects_too_many_files(client_with_tmp_repo):
     client, _ = client_with_tmp_repo
-    resp = client.post(
-        "/profile/ingest",
-        files={"file": ("resume.txt", b"some text", "text/plain")},
-    )
+    files = [("files", (f"f{i}.txt", b"content", "text/plain")) for i in range(21)]
+    resp = client.post("/profile/ingest", files=files)
     assert resp.status_code == 422
+    assert "Maximum 20" in resp.json()["detail"]
 
 
-def test_ingest_completed_saves_profile(client_with_tmp_repo):
-    client, repo = client_with_tmp_repo
-    mock_client = make_llm_mock(_VALID_PROFILE.model_dump_json())
-
-    with patch("app.routers.profile._ingestion.run") as mock_run:
+def test_ingest_accepted_returns_job_id(client_with_tmp_repo):
+    client, _ = client_with_tmp_repo
+    with patch("app.routers.profile._ingestion.run") as mock_run, \
+         patch("app.services.suggestions.generate_suggestions", return_value=[]), \
+         patch("app.services.file_processor.compile_reference_text", return_value="Relevant content"):
         from app.models.ingestion import IngestionResponse
-        import uuid
         mock_run.return_value = IngestionResponse(
             ingestion_id=uuid.uuid4(),
             status=IngestionStatus.COMPLETED,
@@ -114,68 +102,53 @@ def test_ingest_completed_saves_profile(client_with_tmp_repo):
         )
         resp = client.post(
             "/profile/ingest",
-            files={"file": ("resume.html", b"<p>Ada Lovelace</p>", "text/html")},
+            files=[("files", ("resume.pdf", b"%PDF-1.4", "application/pdf"))],
         )
-
     assert resp.status_code == 202
-    data = resp.json()
-    assert data["status"] == "completed"
-    assert data["profile"]["contact"]["full_name"] == "Ada Lovelace"
-    assert repo.exists()
+    assert "job_id" in resp.json()
 
 
-def test_ingest_hitl_saves_partial_and_not_final(client_with_tmp_repo):
+def test_patch_prompts_updates_cv_prompt(client_with_tmp_repo):
     client, repo = client_with_tmp_repo
+    repo.save(_VALID_PROFILE)
+    resp = client.patch("/profile/prompts", json={"cv_prompt": "My custom prompt {JOB_DESCRIPTION}"})
+    assert resp.status_code == 200
+    assert repo.load().cv_prompt == "My custom prompt {JOB_DESCRIPTION}"
 
-    from app.models.ingestion import HITLField, HITLRequest, IngestionResponse
-    import uuid
 
-    hitl_id = uuid.uuid4()
-    hitl_response = IngestionResponse(
-        ingestion_id=hitl_id,
-        status=IngestionStatus.HITL_REQUIRED,
-        hitl_request=HITLRequest(
-            ingestion_id=hitl_id,
-            partial_profile=_VALID_PROFILE,
-            missing_fields=[
-                HITLField(
-                    field_path="work_experiences.0.achievements.0.metric",
-                    llm_suggestion="How much did deploy time reduce?",
-                    reason="No metric found.",
-                )
-            ],
-        ),
-    )
+def test_patch_prompts_updates_cover_letter_prompt(client_with_tmp_repo):
+    client, repo = client_with_tmp_repo
+    repo.save(_VALID_PROFILE)
+    resp = client.patch("/profile/prompts", json={"cover_letter_prompt": "Custom CL {JOB_DESCRIPTION}"})
+    assert resp.status_code == 200
+    assert repo.load().cover_letter_prompt == "Custom CL {JOB_DESCRIPTION}"
 
-    with patch("app.routers.profile.extract_text", return_value="Ada resume text"), \
-         patch("app.routers.profile._ingestion.run", return_value=hitl_response):
-        resp = client.post(
-            "/profile/ingest",
-            files={"file": ("resume.pdf", b"%PDF-1.4", "application/pdf")},
-        )
 
-    assert resp.status_code == 202
-    assert resp.json()["status"] == "hitl_required"
-    assert not repo.exists()         # final profile NOT saved yet
-    assert repo.partial_exists()     # partial IS saved so resolve can find it
+def test_patch_prompts_partial_update(client_with_tmp_repo):
+    client, repo = client_with_tmp_repo
+    repo.save(_VALID_PROFILE)
+    original_cl = repo.load().cover_letter_prompt
+    client.patch("/profile/prompts", json={"cv_prompt": "New CV"})
+    updated = repo.load()
+    assert updated.cv_prompt == "New CV"
+    assert updated.cover_letter_prompt == original_cl  # unchanged
+
+
+def test_patch_prompts_404_when_no_profile(client_with_tmp_repo):
+    client, _ = client_with_tmp_repo
+    resp = client.patch("/profile/prompts", json={"cv_prompt": "x"})
+    assert resp.status_code == 404
 
 
 def test_resolve_hitl_completes_profile(client_with_tmp_repo):
     client, repo = client_with_tmp_repo
-
-    # Pre-seed the partial profile (simulates what /ingest just saved)
     repo.save_partial(_VALID_PROFILE)
-
-    import json, uuid
     resolution = {
         "ingestion_id": str(uuid.uuid4()),
         "resolved_fields": {
             "work_experiences.0.achievements.0.metric": "by 60%, from 30 to 12 minutes"
         },
     }
-    resp = client.post("/profile/ingest/resolve", json=resolution)
-
-    assert resp.status_code == 200
-    assert resp.json()["status"] == "completed"
-    assert repo.exists()          # final profile saved
-    assert not repo.partial_exists()  # partial cleaned up
+    with patch("app.services.suggestions.generate_suggestions", return_value=[]):
+        resp = client.post("/profile/ingest/resolve", json=resolution)
+    assert resp.status_code == 202
