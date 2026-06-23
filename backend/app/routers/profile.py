@@ -24,6 +24,7 @@ _repo = ProfileRepository()
 _ingestion = IngestionService()
 
 _MAX_FILES = 20
+_MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB per file
 
 
 class AsyncJobStart(BaseModel):

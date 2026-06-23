@@ -77,7 +77,7 @@ export function ApplicationGenerator({ job, match }: Props) {
       </button>
       {loading && (
         <p style={{ fontSize: 11, color: 'var(--text)', marginTop: 4 }}>
-          Writing tailored resume + cover letter with AI — takes ~20s
+          Writing tailored resume + cover letter with AI — takes 2-5min
         </p>
       )}
     </div>
