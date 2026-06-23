@@ -52,8 +52,20 @@ def test_docx_ignores_empty_paragraphs():
     assert lines == ["Name", "Skills"]
 
 
+# ── TXT / MD ──────────────────────────────────────────────────────────────────
+
+def test_extract_text_accepts_txt():
+    result = extract_text("resume.txt", b"Plain text resume content")
+    assert result == "Plain text resume content"
+
+
+def test_extract_text_accepts_md():
+    result = extract_text("resume.md", b"# John Doe\n\n## Experience")
+    assert "John Doe" in result
+
+
 # ── Unsupported format ────────────────────────────────────────────────────────
 
 def test_unsupported_extension_raises():
     with pytest.raises(ValueError, match="Unsupported file type"):
-        extract_text("resume.txt", b"some text")
+        extract_text("resume.xyz", b"some text")

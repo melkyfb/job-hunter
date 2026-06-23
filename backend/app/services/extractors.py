@@ -17,7 +17,9 @@ def extract_text(filename: str, content: bytes) -> str:
         return _from_docx(content)
     if ext in (".html", ".htm"):
         return _from_html(content)
-    raise ValueError(f"Unsupported file type: '{ext}'. Use PDF, DOCX, or HTML.")
+    if ext in (".txt", ".md", ".markdown"):
+        return content.decode("utf-8", errors="replace")
+    raise ValueError(f"Unsupported file type: '{ext}'. Use PDF, DOCX, HTML, TXT, or MD.")
 
 
 def _from_pdf(content: bytes) -> str:
