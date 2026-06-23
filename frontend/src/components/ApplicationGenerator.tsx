@@ -1,11 +1,9 @@
 import { useState } from 'react'
-import { generateApplication, type JobPosting, type MatchScore, type ApplicationPackage, type DesignVersion } from '../api/client'
-import { DesignSelector } from './DesignSelector'
+import { generateApplication, type JobPosting, type MatchScore, type ApplicationPackage } from '../api/client'
 
 interface Props {
   job: JobPosting
   match: MatchScore
-  designs?: DesignVersion[]
 }
 
 function b64ToBlob(b64: string, type: string): Blob {
@@ -22,21 +20,17 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export function ApplicationGenerator({ job, match, designs = [] }: Props) {
+export function ApplicationGenerator({ job, match }: Props) {
   const [loading, setLoading] = useState(false)
   const [pkg, setPkg] = useState<ApplicationPackage | null>(null)
   const [error, setError] = useState('')
   const [showLetter, setShowLetter] = useState(false)
-  const [resumeDesignId, setResumeDesignId] = useState<string | null>(null)
-  const [coverLetterDesignId, setCoverLetterDesignId] = useState<string | null>(null)
-
-  const hasDesigns = designs.length > 0
 
   async function handleGenerate() {
     setLoading(true)
     setError('')
     try {
-      const result = await generateApplication(job, match, resumeDesignId, coverLetterDesignId)
+      const result = await generateApplication(job, match)
       setPkg(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Generation failed.')
@@ -77,24 +71,6 @@ export function ApplicationGenerator({ job, match, designs = [] }: Props) {
 
   return (
     <div style={{ marginTop: 10 }}>
-      {hasDesigns && (
-        <div style={{ marginBottom: 8, padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--code-bg)' }}>
-          <DesignSelector
-            versions={designs}
-            type="resume"
-            selectedId={resumeDesignId}
-            onChange={setResumeDesignId}
-            label="Resume design"
-          />
-          <DesignSelector
-            versions={designs}
-            type="cover_letter"
-            selectedId={coverLetterDesignId}
-            onChange={setCoverLetterDesignId}
-            label="Cover letter design"
-          />
-        </div>
-      )}
       {error && <p style={{ fontSize: 12, color: '#ef4444', margin: '0 0 6px' }}>{error}</p>}
       <button onClick={handleGenerate} disabled={loading} style={btnStyle(loading ? 'var(--border)' : 'var(--accent)')}>
         {loading ? 'Generating package…' : 'Generate Application Package'}

@@ -1,16 +1,15 @@
 import { useRef, useState } from 'react'
-import { ingestResume, getIngestStatus, type IngestionResponse } from '../api/client'
+import { ingestProfile, getIngestStatus, type IngestionResponse } from '../api/client'
 
 interface Props {
   onCompleted: (response: IngestionResponse) => void
 }
 
 const STEP_LABELS: Record<string, string> = {
-  extracting: 'Extracting text from your file…',
+  extracting: 'Filtering documents for relevant content…',
   analyzing: 'Sending to AI for analysis…',
   validating: 'Validating structured output…',
   suggestions: 'Generating job suggestions…',
-  designs: 'Gerando designs padrão…',
   saving: 'Finalizing your profile…',
   hitl: 'Missing metrics found — please review.',
   done: 'Profile ready!',
@@ -20,12 +19,7 @@ const STEP_LABELS: Record<string, string> = {
 function ProgressBar({ value }: { value: number }) {
   return (
     <div style={{ width: '100%', height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-      <div style={{
-        height: '100%', borderRadius: 2,
-        background: 'var(--accent)',
-        width: `${value}%`,
-        transition: 'width 0.4s ease',
-      }} />
+      <div style={{ height: '100%', borderRadius: 2, background: 'var(--accent)', width: `${value}%`, transition: 'width 0.4s ease' }} />
     </div>
   )
 }
@@ -33,19 +27,22 @@ function ProgressBar({ value }: { value: number }) {
 export function ResumeUpload({ onCompleted }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [uiState, setUiState] = useState<'idle' | 'uploading' | 'error'>('idle')
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [message, setMessage] = useState('')
   const [progress, setProgress] = useState(0)
   const [errorMsg, setErrorMsg] = useState('')
   const [dragOver, setDragOver] = useState(false)
 
-  async function handleFile(file: File) {
+  async function handleFiles(files: File[]) {
+    if (!files.length) return
+    setSelectedFiles(files)
     setUiState('uploading')
     setErrorMsg('')
-    setMessage('Uploading your file…')
+    setMessage('Uploading your documents…')
     setProgress(5)
 
     try {
-      const { job_id } = await ingestResume(file)
+      const { job_id } = await ingestProfile(files)
       await pollIngest(job_id)
     } catch (err: unknown) {
       setUiState('error')
@@ -69,7 +66,6 @@ export function ResumeUpload({ onCompleted }: Props) {
         return
       }
 
-      // failed
       setUiState('error')
       setErrorMsg((status.result as IngestionResponse)?.error ?? status.message)
       return
@@ -77,15 +73,15 @@ export function ResumeUpload({ onCompleted }: Props) {
   }
 
   function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) handleFile(file)
+    const files = Array.from(e.target.files ?? [])
+    if (files.length) handleFiles(files)
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
-    const file = e.dataTransfer.files?.[0]
-    if (file) handleFile(file)
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length) handleFiles(files)
   }
 
   const isUploading = uiState === 'uploading'
@@ -99,9 +95,7 @@ export function ResumeUpload({ onCompleted }: Props) {
         onDragLeave={() => setDragOver(false)}
         style={{
           border: `2px dashed ${dragOver ? 'var(--accent)' : 'var(--border)'}`,
-          borderRadius: 12,
-          padding: '2.5rem',
-          textAlign: 'center',
+          borderRadius: 12, padding: '2.5rem', textAlign: 'center',
           cursor: isUploading ? 'default' : 'pointer',
           background: dragOver ? 'var(--accent-bg)' : 'transparent',
           transition: 'all 0.15s',
@@ -110,31 +104,41 @@ export function ResumeUpload({ onCompleted }: Props) {
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.docx,.html,.htm"
+          multiple
+          accept=".pdf,.docx,.html,.htm,.txt,.md"
           style={{ display: 'none' }}
           onChange={onInputChange}
         />
 
         {isUploading ? (
           <div>
-            <p style={{ fontSize: 14, color: 'var(--text-h)', margin: '0 0 12px', fontWeight: 500 }}>
-              {message}
-            </p>
+            <p style={{ fontSize: 14, color: 'var(--text-h)', margin: '0 0 12px', fontWeight: 500 }}>{message}</p>
             <ProgressBar value={progress} />
-            <p style={{ fontSize: 11, color: 'var(--text)', marginTop: 8 }}>
-              {progress}% complete
-            </p>
+            <p style={{ fontSize: 11, color: 'var(--text)', marginTop: 8 }}>{progress}% complete</p>
           </div>
         ) : (
           <>
             <p style={{ fontSize: 32, margin: 0 }}>📄</p>
             <p style={{ fontWeight: 600, marginTop: 8, color: 'var(--text-h)' }}>
-              Drop your resume here or click to browse
+              Drop your documents here or click to browse
             </p>
-            <p style={{ color: 'var(--text)', fontSize: 13 }}>PDF, DOCX or HTML</p>
+            <p style={{ color: 'var(--text)', fontSize: 13 }}>
+              CV, work references (Arbeitszeugnis), transcripts, links — up to 20 files
+            </p>
+            <p style={{ color: 'var(--text)', fontSize: 12, marginTop: 4 }}>
+              PDF, DOCX, HTML, TXT, MD
+            </p>
           </>
         )}
       </div>
+
+      {selectedFiles.length > 0 && uiState === 'idle' && (
+        <ul style={{ marginTop: 8, fontSize: 12, color: 'var(--text)', listStyle: 'none', padding: 0 }}>
+          {selectedFiles.map((f, i) => (
+            <li key={i}>{f.name} ({(f.size / 1024).toFixed(1)} KB)</li>
+          ))}
+        </ul>
+      )}
 
       {uiState === 'error' && (
         <p style={{ color: '#ef4444', marginTop: 8, fontSize: 13 }}>{errorMsg}</p>
