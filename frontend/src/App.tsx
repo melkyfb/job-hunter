@@ -4,17 +4,17 @@ import { IngestPage } from './pages/IngestPage'
 import { JobSearchPage } from './pages/JobSearchPage'
 import { AutoSearchPage } from './pages/AutoSearchPage'
 import { ProfilePage } from './pages/ProfilePage'
-import { ThemeToggle } from './components/ThemeToggle'
+// import { ThemeToggle } from './components/ThemeToggle'
 
 type AppState = 'loading' | 'no_profile' | 'has_profile' | 'job_search' | 'auto_search'
 
-function TopBar() {
-  return (
-    <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
-      <ThemeToggle />
-    </div>
-  )
-}
+// function TopBar() {
+//   return (
+//     <div style={{ position: 'fixed', top: 12, right: 16, zIndex: 100 }}>
+//       <ThemeToggle />
+//     </div>
+//   )
+// }
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>('loading')
@@ -48,64 +48,35 @@ export default function App() {
 
   if (appState === 'loading') {
     return (
-      <>
-        <TopBar />
-        <p style={{ padding: 32, color: 'var(--text)' }}>Loading…</p>
-      </>
+      <p style={{ padding: 32, color: 'var(--neumo-text)' }}>Loading…</p>
     )
   }
 
   if (appState === 'no_profile') {
-    return (
-      <>
-        <TopBar />
-        <main style={{ padding: '2rem' }}>
-          <IngestPage onProfileReady={() => loadProfile()} />
-        </main>
-      </>
-    )
+    return <IngestPage onProfileReady={() => loadProfile()} />
   }
 
   if (appState === 'job_search') {
     return (
-      <>
-        <TopBar />
-        <main style={{ padding: '2rem' }}>
-          <JobSearchPage
-            onBack={() => setAppState('has_profile')}
-            suggestions={profile?.job_suggestions ?? []}
-          />
-        </main>
-      </>
+      <JobSearchPage
+        onBack={() => setAppState('has_profile')}
+        suggestions={profile?.job_suggestions ?? []}
+      />
     )
   }
 
   if (appState === 'auto_search') {
-    return (
-      <>
-        <TopBar />
-        <main style={{ padding: '2rem' }}>
-          <AutoSearchPage onBack={() => setAppState('has_profile')} />
-        </main>
-      </>
-    )
+    return <AutoSearchPage onBack={() => setAppState('has_profile')} />
   }
 
-  return (
-    <>
-      <TopBar />
-      <main style={{ padding: '2rem' }}>
-        {profile && (
-          <ProfilePage
-            profile={profile}
-            onSearchJobs={() => setAppState('job_search')}
-            onAutoSearch={handleAutoSearch}
-            onReimport={() => setAppState('no_profile')}
-            onProfileUpdated={p => setProfile(p)}
-            autoSearchBadge={autoSearchBadge}
-          />
-        )}
-      </main>
-    </>
-  )
+  return profile ? (
+    <ProfilePage
+      profile={profile}
+      onSearchJobs={() => setAppState('job_search')}
+      onAutoSearch={handleAutoSearch}
+      onReimport={() => setAppState('no_profile')}
+      onProfileUpdated={p => setProfile(p)}
+      autoSearchBadge={autoSearchBadge}
+    />
+  ) : null
 }
