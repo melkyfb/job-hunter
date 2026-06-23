@@ -48,15 +48,34 @@ Additionally: remove the "N job roles identified" hint banner from ProfilePage a
 
 Supported formats for text extraction: PDF, DOCX, HTML, TXT, MD, and any plain-text format. Unknown binary formats are skipped with a warning. The existing `extractors.py` handles PDF and DOCX; add HTML/TXT/MD extraction (trivial: strip tags for HTML, read raw for TXT/MD).
 
-**Compilation:** all extracted texts are concatenated in upload order with a separator:
+**Two-stage processing per file:**
+
+**Stage 1 — Raw text extraction:** each file is converted to plain text (existing extractors + new HTML/TXT/MD support).
+
+**Stage 2 — Relevance extraction (LLM per file):** each file's raw text is sent to the LLM individually to extract only the career-relevant content. This removes boilerplate, legal text, and irrelevant sections. A single compact system prompt handles all file types:
 
 ```
-=== FILE: {original_filename} ===
-{extracted_text}
+You are a career document analyzer. Extract ONLY the career-relevant information from this document.
+Keep: job titles, companies, dates, responsibilities, achievements, skills, technologies, certifications,
+      education (degree, institution, dates, relevant courses), languages, and any performance
+      or competency assessments.
+Discard: legal boilerplate, company addresses, HR signatures, page numbers, decorative headers,
+         privacy notices, and any text not useful for a job application.
+Return the extracted content as clean plain text. If nothing is career-relevant, return an empty string.
+Maximum 4000 characters per file.
+```
+
+Each file's extracted summary is capped at **4,000 characters**. Extraction failures (LLM error or empty result) are logged and skipped.
+
+**Compilation:** extracted summaries are concatenated in upload order:
+
+```
+=== {original_filename} ===
+{extracted_summary}
 
 ```
 
-Total compiled text is capped at **60,000 characters** (truncated from the end with a note appended: `\n[truncated — total was {N} chars]`).
+If the total compiled text exceeds **60,000 characters**, it is truncated from the end with a note: `\n[truncated — {N} chars total across {M} files]`.
 
 The compiled text is stored as `profile.reference_text` on `ProfileMaster`.
 
@@ -347,7 +366,7 @@ The component becomes simpler: just the generate button, loading state, download
 
 **New / updated:**
 
-- `test_routers/test_profile.py`: ingest accepts multiple files, compiles reference_text, caps at 60k chars
+- `test_routers/test_profile.py`: ingest accepts multiple files; reference_text compiled from per-file LLM extractions; caps at 60k chars; files that fail extraction are skipped
 - `test_services/test_application.py`: `_generate_html` substitutes job description into prompt; strips markdown fences from LLM output
 - `test_routers/test_application.py`: `POST /application/generate` no longer accepts design IDs; returns resume + cover letter PDFs
 - `test_routers/test_profile.py`: `PATCH /profile/prompts` updates cv_prompt and/or cover_letter_prompt
