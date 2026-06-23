@@ -47,12 +47,14 @@ export async function deleteProfile() {
   return request<void>('/profile/', { method: 'DELETE' })
 }
 
-export async function ingestResume(file: File) {
+export async function ingestProfile(files: File[]) {
   const form = new FormData()
-  form.append('file', file)
+  for (const file of files) {
+    form.append('files', file)
+  }
   return request<AsyncJobStart>('/profile/ingest', {
     method: 'POST',
-    headers: {},  // let browser set multipart boundary
+    headers: {},
     body: form,
   })
 }
@@ -65,6 +67,13 @@ export async function resolveHITL(resolution: HITLResolution) {
   return request<AsyncJobStart>('/profile/ingest/resolve', {
     method: 'POST',
     body: JSON.stringify(resolution),
+  })
+}
+
+export async function updatePrompts(data: { cv_prompt?: string; cover_letter_prompt?: string }) {
+  return request<ProfileMaster>('/profile/prompts', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
   })
 }
 
@@ -126,49 +135,7 @@ export async function getSearchStatus(searchId: string) {
   return request<AsyncSearchStatus>(`/jobs/search/${searchId}`)
 }
 
-export async function autoSearchJobs(location?: string) {
-  const params = location ? `?location=${encodeURIComponent(location)}` : ''
-  return request<AutoSearchResponse>(`/jobs/auto-search${params}`, { method: 'POST' })
-}
-
-export async function startGenerateResumeDesign(prompt: string, name: string) {
-  return request<AsyncJobStart>('/profile/design/resume', {
-    method: 'POST',
-    body: JSON.stringify({ prompt, name }),
-  })
-}
-
-export async function startGenerateCoverLetterDesign(
-  prompt: string,
-  name: string,
-  inheritFromDesignId?: string,
-) {
-  return request<AsyncJobStart>('/profile/design/cover-letter', {
-    method: 'POST',
-    body: JSON.stringify({ prompt, name, inherit_from_design_id: inheritFromDesignId }),
-  })
-}
-
-export async function updateDesign(designId: string, patch: { name?: string; is_default?: boolean }) {
-  return request<DesignVersion>(`/profile/design/${designId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(patch),
-  })
-}
-
-export async function deleteDesign(designId: string) {
-  return request<void>(`/profile/design/${designId}`, { method: 'DELETE' })
-}
-
-export async function seedDefaultDesigns() {
-  return request<AsyncJobStart>('/profile/design/seed-defaults', { method: 'POST' })
-}
-
-export async function regenerateDesign(designId: string) {
-  return request<AsyncJobStart>(`/profile/design/${designId}/regenerate`, { method: 'POST' })
-}
-
-// ── Auto Search API ───────────────────────────────────────────────────────────
+// ── Auto Search ────────────────────────────────────────────────────────────────
 
 export async function getAutoSearchConfig() {
   return request<AutoSearchConfig>('/auto-search/config')
@@ -227,30 +194,12 @@ export async function cleanupAutoSearch(params: {
   return request<{ removed: number }>(`/auto-search/cleanup?${q}`, { method: 'DELETE' })
 }
 
-export function getDesignPreviewUrl(designId: string) {
-  return `/api/profile/design/${designId}/preview-html`
-}
-
-export function getDesignPdfUrl(designId: string) {
-  return `/api/profile/design/${designId}/pdf`
-}
-
 // ── Application ───────────────────────────────────────────────────────────────
 
-export async function generateApplication(
-  job: JobPosting,
-  match: MatchScore,
-  resumeDesignId?: string | null,
-  coverLetterDesignId?: string | null,
-) {
+export async function generateApplication(job: JobPosting, match: MatchScore) {
   return request<ApplicationPackage>('/application/generate', {
     method: 'POST',
-    body: JSON.stringify({
-      job,
-      match,
-      resume_design_id: resumeDesignId ?? null,
-      cover_letter_design_id: coverLetterDesignId ?? null,
-    }),
+    body: JSON.stringify({ job, match }),
   })
 }
 
@@ -333,9 +282,9 @@ export interface ProfileMaster {
   languages: Language[]
   certifications: string[]
   job_suggestions: JobSuggestion[]
-  design_versions: DesignVersion[]
-  active_resume_design_id: string | null
-  active_cover_letter_design_id: string | null
+  reference_text: string
+  cv_prompt: string
+  cover_letter_prompt: string
 }
 
 export interface HITLField {
@@ -391,22 +340,6 @@ export interface RankedJob {
   posting: JobPosting
   match: MatchScore
   found_via?: string
-}
-
-export interface AutoSearchResponse {
-  results: RankedJob[]
-  queries_used: string[]
-}
-
-export interface DesignVersion {
-  id: string
-  name: string
-  prompt: string
-  type: 'resume' | 'cover_letter'
-  html_template: string
-  inherit_from_design_id?: string
-  created_at: string
-  is_default: boolean
 }
 
 // ── Auto Search ──────────────────────────────────────────────────────────────
