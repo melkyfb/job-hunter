@@ -63,7 +63,7 @@ _PROFILE_WITH_UNKNOWN_METRIC = ProfileMaster(
 def test_ingestion_completed_on_valid_llm_response():
     mock_client = make_llm_mock(_VALID_PROFILE.model_dump_json())
     with patch("app.services.ingestion.get_llm_client", return_value=mock_client):
-        result = IngestionService().run("resume.pdf", "Ada Lovelace, Engineer at TechCorp")
+        result = IngestionService().run("Ada Lovelace, Engineer at TechCorp")
 
     assert result.status == IngestionStatus.COMPLETED
     assert result.profile is not None
@@ -76,7 +76,7 @@ def test_ingestion_completed_on_valid_llm_response():
 def test_ingestion_pauses_when_metric_is_unknown():
     mock_client = make_llm_mock(_PROFILE_WITH_UNKNOWN_METRIC.model_dump_json())
     with patch("app.services.ingestion.get_llm_client", return_value=mock_client):
-        result = IngestionService().run("resume.pdf", "Ada Lovelace resume text")
+        result = IngestionService().run("Ada Lovelace resume text")
 
     assert result.status == IngestionStatus.HITL_REQUIRED
     assert result.hitl_request is not None
@@ -104,7 +104,7 @@ def test_ingestion_self_corrects_on_invalid_json():
     mock_client.chat.completions.create.side_effect = side_effect
 
     with patch("app.services.ingestion.get_llm_client", return_value=mock_client):
-        result = IngestionService().run("resume.pdf", "resume text")
+        result = IngestionService().run("resume text")
 
     assert result.status == IngestionStatus.COMPLETED
     assert call_count == 2  # proved the retry happened
@@ -130,7 +130,7 @@ def test_ingestion_self_corrects_on_schema_violation():
     mock_client.chat.completions.create.side_effect = side_effect
 
     with patch("app.services.ingestion.get_llm_client", return_value=mock_client):
-        result = IngestionService().run("resume.pdf", "resume text")
+        result = IngestionService().run("resume text")
 
     assert result.status == IngestionStatus.COMPLETED
 
@@ -140,7 +140,7 @@ def test_ingestion_self_corrects_on_schema_violation():
 def test_ingestion_fails_after_max_retries():
     mock_client = make_llm_mock("not json at all")
     with patch("app.services.ingestion.get_llm_client", return_value=mock_client):
-        result = IngestionService().run("resume.pdf", "resume text")
+        result = IngestionService().run("resume text")
 
     assert result.status == IngestionStatus.FAILED
     assert result.error is not None
