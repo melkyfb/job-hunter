@@ -8,7 +8,6 @@ import {
   triggerAutoSearchRun,
   type AutoSearchConfig,
   type AutoSearchResultsPage,
-  type DesignVersion,
   type JobStatus,
   type SavedJobWithStatus,
 } from '../api/client'
@@ -18,7 +17,6 @@ import { JobStatusMenu } from '../components/JobStatusMenu'
 
 interface Props {
   onBack: () => void
-  designs?: DesignVersion[]
 }
 
 type Tab = 'new' | 'pipeline' | 'not_interested'
@@ -59,9 +57,8 @@ function timeAgo(iso: string): string {
   return `${m}m atrás`
 }
 
-function JobCard({ job, designs = [], onStatusChanged }: {
+function JobCard({ job, onStatusChanged }: {
   job: SavedJobWithStatus
-  designs?: DesignVersion[]
   onStatusChanged: (urlHash: string, newStatus: JobStatus) => void
 }) {
   const [expanded, setExpanded] = useState(false)
@@ -121,7 +118,7 @@ function JobCard({ job, designs = [], onStatusChanged }: {
           <a href={p.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: 'var(--accent)' }}>
             Ver vaga ↗
           </a>
-          <ApplicationGenerator job={p} match={m} designs={designs} />
+          <ApplicationGenerator job={p} match={m} />
         </div>
       )}
     </div>
@@ -159,7 +156,7 @@ function pageBtn(active: boolean): React.CSSProperties {
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
-export function AutoSearchPage({ onBack, designs = [] }: Props) {
+export function AutoSearchPage({ onBack }: Props) {
   const [config, setConfig] = useState<AutoSearchConfig | null>(null)
   const [tab, setTab] = useState<Tab>('new')
   const [sort, setSort] = useState<'score' | 'recent'>('score')
@@ -381,7 +378,6 @@ export function AutoSearchPage({ onBack, designs = [] }: Props) {
         <JobCard
           key={job.url_hash}
           job={job}
-          designs={designs}
           onStatusChanged={handleStatusChanged}
         />
       ))}

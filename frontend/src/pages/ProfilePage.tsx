@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { downloadMasterResume, seedDefaultDesigns, getIngestStatus, getProfile, type ProfileMaster, type WorkExperience, type Skill, type DesignVersion } from '../api/client'
-import { DesignEditor } from '../components/DesignEditor'
-import { DesignGallery } from '../components/DesignGallery'
+import { downloadMasterResume, updatePrompts, type ProfileMaster, type WorkExperience, type Skill } from '../api/client'
+import { DEFAULT_CV_PROMPT, DEFAULT_CL_PROMPT } from '../constants/promptDefaults'
 
 interface Props {
   profile: ProfileMaster
@@ -12,8 +11,6 @@ interface Props {
   autoSearchBadge?: number
 }
 
-// ── Skill level visual ────────────────────────────────────────────────────────
-
 const LEVEL_DOTS: Record<string, number> = {
   beginner: 1, intermediate: 2, advanced: 3, expert: 4,
 }
@@ -21,25 +18,16 @@ const LEVEL_DOTS: Record<string, number> = {
 function SkillBadge({ skill }: { skill: Skill }) {
   const filled = LEVEL_DOTS[skill.level] ?? 2
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      padding: '3px 10px', borderRadius: 20,
-      border: '1px solid var(--border)', fontSize: 12, color: 'var(--text)',
-    }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 10px', borderRadius: 20, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text)' }}>
       {skill.name}
       <span style={{ display: 'flex', gap: 2 }}>
         {[1, 2, 3, 4].map(i => (
-          <span key={i} style={{
-            width: 5, height: 5, borderRadius: '50%',
-            background: i <= filled ? 'var(--accent)' : 'var(--border)',
-          }} />
+          <span key={i} style={{ width: 5, height: 5, borderRadius: '50%', background: i <= filled ? 'var(--accent)' : 'var(--border)' }} />
         ))}
       </span>
     </span>
   )
 }
-
-// ── XYZ bullet ───────────────────────────────────────────────────────────────
 
 function XYZBullet({ action, metric, context }: { action: string; metric: string; context: string }) {
   return (
@@ -51,16 +39,9 @@ function XYZBullet({ action, metric, context }: { action: string; metric: string
   )
 }
 
-// ── Work experience card ──────────────────────────────────────────────────────
-
 function ExperienceCard({ exp }: { exp: WorkExperience }) {
   const start = new Date(exp.start_date).toLocaleDateString('en', { month: 'short', year: 'numeric' })
-  const end = exp.is_current
-    ? 'Present'
-    : exp.end_date
-      ? new Date(exp.end_date).toLocaleDateString('en', { month: 'short', year: 'numeric' })
-      : ''
-
+  const end = exp.is_current ? 'Present' : exp.end_date ? new Date(exp.end_date).toLocaleDateString('en', { month: 'short', year: 'numeric' }) : ''
   return (
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -71,20 +52,15 @@ function ExperienceCard({ exp }: { exp: WorkExperience }) {
         </div>
         <span style={{ fontSize: 11, color: 'var(--text)', whiteSpace: 'nowrap' }}>{start} – {end}</span>
       </div>
-
       <ul style={{ margin: '6px 0 0 0', paddingLeft: 16 }}>
         {exp.achievements.map((a, i) => (
           <XYZBullet key={i} action={a.action} metric={a.metric} context={a.context} />
         ))}
       </ul>
-
       {exp.technologies.length > 0 && (
         <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {exp.technologies.map(t => (
-            <span key={t} style={{
-              fontSize: 11, padding: '1px 7px', borderRadius: 4,
-              background: 'var(--code-bg)', color: 'var(--text)',
-            }}>{t}</span>
+            <span key={t} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 4, background: 'var(--code-bg)', color: 'var(--text)' }}>{t}</span>
           ))}
         </div>
       )}
@@ -92,15 +68,10 @@ function ExperienceCard({ exp }: { exp: WorkExperience }) {
   )
 }
 
-// ── Section heading ───────────────────────────────────────────────────────────
-
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section style={{ marginBottom: 28 }}>
-      <h2 style={{
-        fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase',
-        color: 'var(--accent)', margin: '0 0 12px', borderBottom: '1px solid var(--border)', paddingBottom: 6,
-      }}>
+      <h2 style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--accent)', margin: '0 0 12px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
         {title}
       </h2>
       {children}
@@ -108,64 +79,73 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+interface PromptEditorProps {
+  label: string
+  value: string
+  defaultValue: string
+  onChange: (v: string) => void
+  onSave: () => Promise<void>
+}
+
+function PromptEditor({ label, value, defaultValue, onChange, onSave }: PromptEditorProps) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      await onSave()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleReset() {
+    onChange(defaultValue)
+  }
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-h)' }}>{label}</span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {saved && <span style={{ fontSize: 11, color: 'var(--accent)' }}>Saved ✓</span>}
+          <button
+            onClick={handleReset}
+            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', cursor: 'pointer' }}
+          >
+            Reset to default
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 5, border: 'none', background: 'var(--accent)', color: 'white', cursor: saving ? 'default' : 'pointer' }}
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+      <textarea
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        rows={18}
+        style={{
+          width: '100%', fontFamily: 'monospace', fontSize: 11,
+          padding: '10px 12px', borderRadius: 6, border: '1px solid var(--border)',
+          background: 'var(--code-bg)', color: 'var(--text)', resize: 'vertical',
+          boxSizing: 'border-box',
+        }}
+      />
+    </div>
+  )
+}
 
 export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, onProfileUpdated, autoSearchBadge }: Props) {
   const [downloading, setDownloading] = useState(false)
-  const [seedingAll, setSeedingAll] = useState(false)
-  const [seedAllMsg, setSeedAllMsg] = useState('')
-  const [seedAllError, setSeedAllError] = useState('')
-
-  function handleDesignSaved(version: DesignVersion) {
-    onProfileUpdated({ ...profile, design_versions: [...profile.design_versions, version] })
-  }
-
-  function handleDesignUpdated(updated: DesignVersion) {
-    onProfileUpdated({
-      ...profile,
-      design_versions: profile.design_versions.map(v => v.id === updated.id ? updated : v),
-      active_resume_design_id: updated.is_default && updated.type === 'resume' ? updated.id : profile.active_resume_design_id,
-      active_cover_letter_design_id: updated.is_default && updated.type === 'cover_letter' ? updated.id : profile.active_cover_letter_design_id,
-    })
-  }
-
-  function handleDesignDeleted(id: string) {
-    onProfileUpdated({
-      ...profile,
-      design_versions: profile.design_versions.filter(v => v.id !== id),
-      active_resume_design_id: profile.active_resume_design_id === id ? null : profile.active_resume_design_id,
-      active_cover_letter_design_id: profile.active_cover_letter_design_id === id ? null : profile.active_cover_letter_design_id,
-    })
-  }
-
-  async function handleSeedAll() {
-    setSeedingAll(true)
-    setSeedAllMsg('Iniciando…')
-    setSeedAllError('')
-    try {
-      const { job_id } = await seedDefaultDesigns()
-      while (true) {
-        const status = await getIngestStatus(job_id)
-        setSeedAllMsg(status.message)
-        if (status.status === 'completed') {
-          const updated = await getProfile()
-          onProfileUpdated(updated)
-          setSeedingAll(false)
-          setSeedAllMsg('')
-          return
-        }
-        if (status.status === 'failed') {
-          setSeedAllError(status.message || 'Failed to regenerate designs.')
-          setSeedingAll(false)
-          return
-        }
-        await new Promise(r => setTimeout(r, 1000))
-      }
-    } catch (err: unknown) {
-      setSeedAllError(err instanceof Error ? err.message : 'Failed.')
-      setSeedingAll(false)
-    }
-  }
+  const [cvPrompt, setCvPrompt] = useState(profile.cv_prompt)
+  const [clPrompt, setClPrompt] = useState(profile.cover_letter_prompt)
 
   async function handleDownload() {
     setDownloading(true)
@@ -182,6 +162,16 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
     }
   }
 
+  async function saveCvPrompt() {
+    const updated = await updatePrompts({ cv_prompt: cvPrompt })
+    onProfileUpdated(updated)
+  }
+
+  async function saveClPrompt() {
+    const updated = await updatePrompts({ cover_letter_prompt: clPrompt })
+    onProfileUpdated(updated)
+  }
+
   const c = profile.contact
 
   return (
@@ -189,22 +179,28 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
 
       {/* ── Header ── */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, margin: '0 0 4px', color: 'var(--text-h)' }}>
-          {c.full_name}
-        </h1>
+        <h1 style={{ fontSize: 24, margin: '0 0 4px', color: 'var(--text-h)' }}>{c.full_name}</h1>
         <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 0 12px' }}>
           {[c.email, c.phone, c.location].filter(Boolean).join('  ·  ')}
           {c.linkedin_url && <> · <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>LinkedIn</a></>}
           {c.github_url && <> · <a href={c.github_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>GitHub</a></>}
         </p>
 
-        {/* Action buttons */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button
             onClick={onSearchJobs}
-            style={{ padding: '8px 18px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: 13 }}
+            style={{ padding: '8px 18px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 7, fontWeight: 600, cursor: 'pointer', fontSize: 13, position: 'relative' }}
           >
             Search Jobs
+            {profile.job_suggestions.length > 0 && (
+              <span style={{
+                marginLeft: 6, background: 'white', color: 'var(--accent)',
+                borderRadius: '50%', fontSize: 10, fontWeight: 700,
+                padding: '1px 5px', verticalAlign: 'middle',
+              }}>
+                {profile.job_suggestions.length}
+              </span>
+            )}
           </button>
           {profile.job_suggestions.length > 0 && (
             <button
@@ -213,11 +209,7 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
             >
               ⚡ Auto Search
               {(autoSearchBadge ?? 0) > 0 && (
-                <span style={{
-                  marginLeft: 6, background: '#ef4444', color: 'white',
-                  borderRadius: '50%', fontSize: 10, fontWeight: 700,
-                  padding: '1px 5px', verticalAlign: 'middle',
-                }}>
+                <span style={{ marginLeft: 6, background: '#ef4444', color: 'white', borderRadius: '50%', fontSize: 10, fontWeight: 700, padding: '1px 5px', verticalAlign: 'middle' }}>
                   {autoSearchBadge}
                 </span>
               )}
@@ -234,7 +226,7 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
             onClick={onReimport}
             style={{ padding: '8px 18px', background: 'none', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 7, cursor: 'pointer', fontSize: 13 }}
           >
-            Re-import resume
+            Re-import documents
           </button>
         </div>
       </div>
@@ -271,11 +263,7 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
                 {edu.degree} in {edu.field_of_study}
               </span>
               <span style={{ fontSize: 13, color: 'var(--text)' }}> — {edu.institution}</span>
-              {edu.end_date && (
-                <span style={{ fontSize: 12, color: 'var(--text)', marginLeft: 6 }}>
-                  ({new Date(edu.end_date).getFullYear()})
-                </span>
-              )}
+              {edu.end_date && <span style={{ fontSize: 12, color: 'var(--text)', marginLeft: 6 }}>({new Date(edu.end_date).getFullYear()})</span>}
             </div>
           ))}
         </Section>
@@ -290,84 +278,26 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
         </Section>
       )}
 
-      {/* ── Job suggestions hint ── */}
-      {profile.job_suggestions.length > 0 && (
-        <div style={{
-          marginTop: 8, padding: '10px 14px', borderRadius: 8,
-          background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
-          fontSize: 12, color: 'var(--text)',
-        }}>
-          <strong style={{ color: 'var(--accent)' }}>{profile.job_suggestions.length} job roles</strong> identified from your profile.
-          {' '}
-          <button
-            onClick={onSearchJobs}
-            style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0 }}
-          >
-            Search Jobs →
-          </button>
-        </div>
-      )}
-
-      {/* ── Resume Design ── */}
-      <Section title="Resume Design">
-        {/* Regenerar todos button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <button
-            onClick={handleSeedAll}
-            disabled={seedingAll}
-            style={{
-              fontSize: 12, padding: '4px 12px', borderRadius: 6,
-              border: '1px solid var(--border)', background: 'var(--bg)',
-              color: 'var(--text)', cursor: seedingAll ? 'default' : 'pointer',
-            }}
-          >
-            {seedingAll ? 'Gerando…' : 'Regenerar todos os designs'}
-          </button>
-          {seedingAll && (
-            <span style={{ fontSize: 11, color: 'var(--text)' }}>{seedAllMsg}</span>
-          )}
-        </div>
-        {seedAllError && (
-          <p style={{ fontSize: 12, color: '#ef4444', marginBottom: 8 }}>{seedAllError}</p>
-        )}
-        <DesignGallery
-          versions={profile.design_versions}
-          type="resume"
-          activeId={profile.active_resume_design_id}
-          onUpdated={handleDesignUpdated}
-          onDeleted={handleDesignDeleted}
-          onRegenerated={async () => {
-            const updated = await getProfile()
-            onProfileUpdated(updated)
-          }}
+      {/* ── Generation Prompts ── */}
+      <Section title="Generation Prompts">
+        <p style={{ fontSize: 12, color: 'var(--text)', marginBottom: 16 }}>
+          These prompts are sent to the AI when generating your resume and cover letter PDFs.
+          Use <code style={{ fontSize: 11, background: 'var(--code-bg)', padding: '1px 4px', borderRadius: 3 }}>{'{JOB_DESCRIPTION}'}</code> as placeholder — it's replaced automatically with the job details.
+        </p>
+        <PromptEditor
+          label="Resume Prompt"
+          value={cvPrompt}
+          defaultValue={DEFAULT_CV_PROMPT}
+          onChange={setCvPrompt}
+          onSave={saveCvPrompt}
         />
-        <DesignEditor
-          type="resume"
-          profile={profile}
-          onSaved={handleDesignSaved}
+        <PromptEditor
+          label="Cover Letter Prompt"
+          value={clPrompt}
+          defaultValue={DEFAULT_CL_PROMPT}
+          onChange={setClPrompt}
+          onSave={saveClPrompt}
         />
-      </Section>
-
-      {/* ── Cover Letter Design ── */}
-      <Section title="Cover Letter Design">
-        <DesignGallery
-          versions={profile.design_versions}
-          type="cover_letter"
-          activeId={profile.active_cover_letter_design_id}
-          onUpdated={handleDesignUpdated}
-          onDeleted={handleDesignDeleted}
-        />
-        <DesignEditor
-          type="cover_letter"
-          profile={profile}
-          inheritFromDesignId={profile.active_resume_design_id ?? undefined}
-          onSaved={handleDesignSaved}
-        />
-        {profile.design_versions.some(v => v.type === 'resume') && (
-          <p style={{ fontSize: 12, color: 'var(--text)', marginTop: 8 }}>
-            Tip: your active resume design will be offered as a base style for the cover letter.
-          </p>
-        )}
       </Section>
     </div>
   )

@@ -74,7 +74,6 @@ export default function App() {
           <JobSearchPage
             onBack={() => setAppState('has_profile')}
             suggestions={profile?.job_suggestions ?? []}
-            designs={profile?.design_versions ?? []}
           />
         </main>
       </>
@@ -86,7 +85,7 @@ export default function App() {
       <>
         <TopBar />
         <main style={{ padding: '2rem' }}>
-          <AutoSearchPage onBack={() => setAppState('has_profile')} designs={profile?.design_versions ?? []} />
+          <AutoSearchPage onBack={() => setAppState('has_profile')} />
         </main>
       </>
     )

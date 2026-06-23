@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { searchJobs, getSearchStatus, type RankedJob, type JobSearchResponse, type JobSuggestion, type DesignVersion } from '../api/client'
+import { searchJobs, getSearchStatus, type RankedJob, type JobSearchResponse, type JobSuggestion } from '../api/client'
 import { ApplicationGenerator } from '../components/ApplicationGenerator'
 import { JobQueryBuilder } from '../components/JobQueryBuilder'
 
 interface Props {
   onBack: () => void
   suggestions: JobSuggestion[]
-  designs?: DesignVersion[]
 }
 
 function sleep(ms: number) {
@@ -33,7 +32,7 @@ function ProgressBar({ value }: { value: number }) {
   )
 }
 
-export function JobSearchPage({ onBack, suggestions, designs = [] }: Props) {
+export function JobSearchPage({ onBack, suggestions }: Props) {
   const [location, setLocation] = useState('Munich, Germany')
   const [results, setResults] = useState<RankedJob[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -195,7 +194,7 @@ export function JobSearchPage({ onBack, suggestions, designs = [] }: Props) {
                 )}
               </div>
 
-              <ApplicationGenerator job={posting} match={match} designs={designs} />
+              <ApplicationGenerator job={posting} match={match} />
             </div>
           ))}
         </div>
