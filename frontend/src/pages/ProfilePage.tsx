@@ -90,13 +90,17 @@ interface PromptEditorProps {
 function PromptEditor({ label, value, defaultValue, onChange, onSave }: PromptEditorProps) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   async function handleSave() {
     setSaving(true)
+    setSaveError('')
     try {
       await onSave()
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Erro ao salvar.')
     } finally {
       setSaving(false)
     }
@@ -138,6 +142,9 @@ function PromptEditor({ label, value, defaultValue, onChange, onSave }: PromptEd
           boxSizing: 'border-box',
         }}
       />
+      {saveError && (
+        <p style={{ fontSize: 11, color: '#ef4444', margin: '4px 0 0' }}>{saveError}</p>
+      )}
     </div>
   )
 }

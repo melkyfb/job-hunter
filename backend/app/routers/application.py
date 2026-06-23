@@ -38,7 +38,7 @@ async def generate_application(req: GenerateRequest) -> ApplicationPackage:
             detail="No profile found. Upload your resume first.",
         )
     try:
-        result = await asyncio.get_event_loop().run_in_executor(
+        result = await asyncio.get_running_loop().run_in_executor(
             None,
             lambda: generate_application_package(profile, req.job, req.match),
         )
@@ -61,7 +61,7 @@ async def download_master_resume() -> Response:
     except ProfileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No profile found.")
 
-    pdf_bytes = await asyncio.get_event_loop().run_in_executor(
+    pdf_bytes = await asyncio.get_running_loop().run_in_executor(
         None, generate_master_resume, profile
     )
     filename = f"{profile.contact.full_name.replace(' ', '_')}_Resume.pdf"
