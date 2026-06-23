@@ -46,6 +46,8 @@
   --neumo-text:    #2d3a52;
   --neumo-text-s:  #5a6a82;
   --color-error:   #ef4444;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
