@@ -16,6 +16,7 @@ const PAGE_BG: React.CSSProperties = {
   background: 'var(--blue-gradient)',
   minHeight: '100svh',
   padding: '0 0 48px',
+  colorScheme: 'light' as const,
 }
 
 const ACTION_BAR: React.CSSProperties = {
@@ -62,7 +63,6 @@ const NEUMO_INSET: React.CSSProperties = {
   boxShadow: 'var(--neumo-inset)',
   borderRadius: 10,
   border: 'none',
-  outline: 'none',
   padding: '12px 14px',
   width: '100%',
   resize: 'vertical' as const,
@@ -356,8 +356,8 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
         {profile.work_experiences.length > 0 && (
           <div style={NEUMO_PANEL}>
             <h2 style={SECTION_TITLE}>Experience</h2>
-            {profile.work_experiences.map(exp => (
-              <div key={exp.id} style={{ ...NEUMO_CARD_SM, marginBottom: profile.work_experiences.indexOf(exp) === profile.work_experiences.length - 1 ? 0 : 12 }}>
+            {profile.work_experiences.map((exp, i) => (
+              <div key={exp.id} style={{ ...NEUMO_CARD_SM, marginBottom: i === profile.work_experiences.length - 1 ? 0 : 12 }}>
                 <ExperienceCard exp={exp} />
               </div>
             ))}
