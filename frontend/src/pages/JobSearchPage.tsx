@@ -247,6 +247,9 @@ export function JobSearchPage({ onBack, suggestions }: Props) {
             <button
               onClick={() => doSearch(lastQuery, true)}
               style={{ background: 'none', border: 'none', color: 'var(--blue-primary)', cursor: 'pointer', fontSize: 12, fontWeight: 700, padding: 0 }}
+              onMouseDown={e => { e.currentTarget.style.color = 'var(--blue-medium)' }}
+              onMouseUp={e => { e.currentTarget.style.color = 'var(--blue-primary)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--blue-primary)' }}
             >
               Refresh
             </button>

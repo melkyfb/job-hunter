@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   cleanupAutoSearch,
   getAutoSearchConfig,
@@ -256,12 +256,7 @@ export function AutoSearchPage({ onBack }: Props) {
     if (tab === 'new') markAutoSearchSeen().catch(() => {})
   }, [tab])
 
-  useEffect(() => {
-    if (!config) return
-    loadResults()
-  }, [tab, page, sort, config])
-
-  async function loadResults() {
+  const loadResults = useCallback(async () => {
     setLoading(true)
     try {
       const res = await getAutoSearchResults(page, pageSize, TAB_FILTERS[tab], sort)
@@ -271,7 +266,12 @@ export function AutoSearchPage({ onBack }: Props) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [page, pageSize, tab, sort])
+
+  useEffect(() => {
+    if (!config) return
+    loadResults()
+  }, [tab, page, sort, config, loadResults])
 
   function handleTabChange(t: Tab) {
     setTab(t)
@@ -415,6 +415,9 @@ export function AutoSearchPage({ onBack }: Props) {
                 boxShadow: tab === t ? 'var(--neumo-raised-sm)' : 'none',
                 borderRadius: '8px 8px 0 0',
               }}
+              onMouseDown={e => { e.currentTarget.style.boxShadow = 'var(--neumo-pressed)' }}
+              onMouseUp={e => { e.currentTarget.style.boxShadow = tab === t ? 'var(--neumo-raised-sm)' : 'none' }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = tab === t ? 'var(--neumo-raised-sm)' : 'none' }}
             >
               {TAB_LABELS[t]}
             </button>
