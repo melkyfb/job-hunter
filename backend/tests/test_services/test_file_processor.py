@@ -44,8 +44,8 @@ def test_compile_reference_text_skips_failed_extraction():
     mock_client.chat.completions.create.side_effect = side_effect
     with patch("app.services.file_processor.get_llm_client", return_value=mock_client):
         result = compile_reference_text([("bad.pdf", b"content"), ("ok.txt", b"real text")])
-    # Both fail — result may be empty but should not raise
-    assert isinstance(result, str)
+    # Both files fail LLM extraction; result should be empty string (no error raised)
+    assert result == ""
 
 
 def test_extract_relevant_caps_at_4000_chars():

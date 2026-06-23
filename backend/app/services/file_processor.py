@@ -31,6 +31,7 @@ def extract_relevant(filename: str, content: bytes) -> str:
     except ValueError as exc:
         logger.warning("Skipping %s — unsupported format: %s", filename, exc)
         return ""
+    # pdfminer raises non-ValueError exceptions for corrupted files
     except Exception as exc:
         logger.warning("Skipping %s — extraction error: %s", filename, exc)
         return ""
