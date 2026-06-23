@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import application, auto_search, config, design, jobs, profile
+from app.routers import application, auto_search, config, jobs, profile
 
 
 @asynccontextmanager
@@ -34,7 +34,6 @@ app.include_router(profile.router)
 app.include_router(jobs.router)
 app.include_router(application.router)
 app.include_router(config.router)
-app.include_router(design.router)
 app.include_router(auto_search.router)
 
 
