@@ -128,7 +128,8 @@ def test_patch_prompts_partial_update(client_with_tmp_repo):
     client, repo = client_with_tmp_repo
     repo.save(_VALID_PROFILE)
     original_cl = repo.load().cover_letter_prompt
-    client.patch("/profile/prompts", json={"cv_prompt": "New CV"})
+    resp = client.patch("/profile/prompts", json={"cv_prompt": "New CV"})
+    assert resp.status_code == 200
     updated = repo.load()
     assert updated.cv_prompt == "New CV"
     assert updated.cover_letter_prompt == original_cl  # unchanged

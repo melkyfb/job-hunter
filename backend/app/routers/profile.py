@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from typing import Any, List, Literal, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -62,7 +62,6 @@ def _finalise_with_suggestions(job_id: str, profile: ProfileMaster, reference_te
     profile.job_suggestions = suggestions
     profile.reference_text = reference_text
     _repo.save(profile)
-    store.update_job(job_id, status="completed", step="done", message="Profile ready!", progress=100)
 
 
 @router.post(
@@ -71,7 +70,7 @@ def _finalise_with_suggestions(job_id: str, profile: ProfileMaster, reference_te
     status_code=status.HTTP_202_ACCEPTED,
     summary="Upload documents and start ingestion in the background",
 )
-async def ingest_resume(files: List[UploadFile] = File(...)) -> AsyncJobStart:
+async def ingest_resume(files: list[UploadFile] = File(...)) -> AsyncJobStart:
     if len(files) > _MAX_FILES:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
