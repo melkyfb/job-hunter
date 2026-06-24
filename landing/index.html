@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Job Hunter Assistant — AI-powered job application tool</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #1E4D9E;
+      --blue-dark: #163d80;
+      --blue-light: #EBF1FB;
+      --bg: #dde4f0;
+      --border: #C3D4EF;
+      --text: #2d3a52;
+      --text-s: #5a6a82;
+    }
+
+    body {
+      font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #dde4f0 0%, #c8d8ee 55%, #d5dff0 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 80px 24px 60px;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .logo svg { width: 48px; height: 48px; }
+
+    .logo-text {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--blue);
+      letter-spacing: -0.5px;
+    }
+
+    .tagline {
+      font-size: 18px;
+      color: var(--text-s);
+      max-width: 520px;
+      margin: 0 auto 16px;
+      line-height: 1.6;
+    }
+
+    .sub {
+      font-size: 14px;
+      color: var(--text-s);
+      margin-bottom: 48px;
+    }
+
+    .downloads {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 24px;
+      background: var(--blue);
+      color: white;
+      text-decoration: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 15px;
+      box-shadow: 6px 6px 16px rgba(163,177,198,0.5), -6px -6px 16px rgba(255,255,255,0.8);
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .dl-btn:hover { background: var(--blue-dark); transform: translateY(-1px); }
+
+    .dl-btn.secondary {
+      background: #dde4f0;
+      color: var(--blue);
+      border: 1.5px solid var(--border);
+    }
+
+    .dl-btn.secondary:hover { background: #c8d8ee; }
+
+    .version-note {
+      font-size: 12px;
+      color: var(--text-s);
+      margin-bottom: 64px;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    .feature-card {
+      background: #dde4f0;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 8px 8px 20px rgba(163,177,198,0.65), -8px -8px 20px rgba(255,255,255,0.85);
+      text-align: left;
+    }
+
+    .feature-icon { font-size: 32px; margin-bottom: 12px; }
+
+    .feature-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .feature-desc {
+      font-size: 13px;
+      color: var(--text-s);
+      line-height: 1.6;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-s);
+    }
+
+    .footer a { color: var(--blue); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="logo">
+      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="48" height="48" rx="12" fill="#1E4D9E"/>
+        <path d="M12 34V16a2 2 0 012-2h20a2 2 0 012 2v18l-4-3-4 3-4-3-4 3-4-3-4 3z" fill="white" opacity="0.9"/>
+        <rect x="17" y="20" width="14" height="2" rx="1" fill="#1E4D9E"/>
+        <rect x="17" y="24" width="10" height="2" rx="1" fill="#1E4D9E"/>
+        <rect x="17" y="28" width="7" height="2" rx="1" fill="#1E4D9E"/>
+      </svg>
+      <span class="logo-text">Job Hunter Assistant</span>
+    </div>
+
+    <p class="tagline">
+      AI-powered job application tool. Tailored CVs and cover letters in seconds. Runs 100% on your machine.
+    </p>
+
+    <p class="sub">Your data never leaves your computer — no cloud, no subscriptions.</p>
+
+    <div class="downloads">
+      <a id="dl-windows" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.549H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+        Download for Windows
+      </a>
+      <a id="dl-linux" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0a12 12 0 100 24A12 12 0 0012 0zm0 2c5.514 0 10 4.486 10 10S17.514 22 12 22 2 17.514 2 12 6.486 2 12 2zm0 2a8 8 0 100 16A8 8 0 0012 4z"/></svg>
+        Download for Linux
+      </a>
+      <a id="dl-mac" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn secondary">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        Download for macOS
+      </a>
+    </div>
+
+    <p class="version-note" id="version-note">
+      Latest release — <a href="https://github.com/melkyfb/job-hunter/releases" style="color: var(--blue);">all versions</a>
+    </p>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title">AI-Generated CVs</div>
+      <div class="feature-desc">
+        Upload your resume once. The LLM tailors a CV and cover letter for each job posting using the Google XYZ formula.
+        Works with OpenAI, Ollama, LM Studio, Groq, Mistral, or any OpenAI-compatible endpoint.
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔍</div>
+      <div class="feature-title">Automated Job Search</div>
+      <div class="feature-desc">
+        Connects to Adzuna to find relevant jobs automatically. Scores each posting against your profile.
+        Pipeline view to track applications from first contact to offer.
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">100% Local</div>
+      <div class="feature-desc">
+        No cloud, no account, no subscription. Your resume, API keys, and application history stay on your machine.
+        Use a local LLM (Ollama) and your data never leaves your computer.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>
+      <a href="https://github.com/melkyfb/job-hunter">GitHub</a> ·
+      MIT License ·
+      Built with Tauri, React, Python
+    </p>
+  </div>
+
+  <script>
+    // Attempt to get latest release version from GitHub API
+    // Falls back to /releases/latest redirect (no JS required)
+    fetch('https://api.github.com/repos/melkyfb/job-hunter/releases/latest')
+      .then(r => r.json())
+      .then(data => {
+        const tag = data.tag_name
+        if (!tag) return
+        const assets = data.assets || []
+
+        const find = (keyword) => {
+          const a = assets.find(a => a.name.toLowerCase().includes(keyword))
+          return a ? a.browser_download_url : null
+        }
+
+        const msi = find('.msi') || find('_x64_en-us.msi') || find('windows')
+        const appimage = find('.appimage') || find('linux')
+        const dmg = find('.dmg') || find('macos') || find('apple')
+
+        if (msi) document.getElementById('dl-windows').href = msi
+        if (appimage) document.getElementById('dl-linux').href = appimage
+        if (dmg) document.getElementById('dl-mac').href = dmg
+
+        document.getElementById('version-note').innerHTML =
+          `Version ${tag} — <a href="https://github.com/melkyfb/job-hunter/releases" style="color: var(--blue);">all versions</a>`
+      })
+      .catch(() => { /* keep fallback links */ })
+  </script>
+</body>
+</html>
