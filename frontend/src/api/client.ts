@@ -14,14 +14,16 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 const BASE = import.meta.env.VITE_API_BASE ?? (isTauri ? 'http://localhost:8000' : '/api')
 
-// Use Tauri's HTTP plugin when available — bypasses WebView mixed-content restrictions.
-const _fetch: typeof fetch = isTauri ? (tauriFetch as unknown as typeof fetch) : fetch
-
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await _fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-    ...init,
-  })
+  const isFormData = init?.body instanceof FormData
+  // tauriFetch handles JSON requests (bypasses mixed-content for tauri:// origin).
+  // FormData/file uploads use window.fetch directly — tauriFetch can't serialize File objects.
+  const fetchFn = isTauri && !isFormData ? (tauriFetch as unknown as typeof fetch) : fetch
+  // Never set Content-Type for FormData — browser must set it with the multipart boundary.
+  const headers = isFormData
+    ? (init?.headers ?? {})
+    : { 'Content-Type': 'application/json', ...init?.headers }
+  const res = await fetchFn(`${BASE}${path}`, { ...init, headers })
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new ApiError(res.status, body.detail ?? 'Unknown error')
