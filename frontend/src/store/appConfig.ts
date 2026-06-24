@@ -34,7 +34,7 @@ export const DEFAULT_CONFIG: AppConfig = {
 }
 
 async function getStore() {
-  return load('config.json', { autoSave: true })
+  return load('config.json')
 }
 
 export async function loadConfig(): Promise<AppConfig> {

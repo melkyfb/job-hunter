@@ -1,6 +1,4 @@
 // frontend/src/components/SettingsButton.tsx
-import React from 'react'
-
 interface Props {
   onClick: () => void
   label?: string
