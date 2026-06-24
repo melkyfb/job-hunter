@@ -6,7 +6,9 @@
  * from the live OpenAPI spec — any backend model change will surface as a TS error here.
  */
 
-const BASE = '/api'
+import { invoke } from '@tauri-apps/api/core'
+
+const BASE = import.meta.env.VITE_API_BASE ?? '/api'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
@@ -203,16 +205,42 @@ export async function generateApplication(job: JobPosting, match: MatchScore) {
   })
 }
 
-export async function downloadMasterResume(): Promise<Blob> {
-  const res = await fetch(`${BASE}/application/master-resume`)
-  if (!res.ok) throw new ApiError(res.status, 'Failed to download resume')
-  return res.blob()
+export async function getMasterResumeHtml(): Promise<string> {
+  const data = await request<{ html: string }>('/application/master-resume')
+  return data.html
+}
+
+export async function openCvPreview(html: string): Promise<void> {
+  await invoke('open_cv_preview', { html })
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
 export async function getLLMConfig() {
   return request<LLMConfigView>('/config/llm')
+}
+
+export interface ConfigUpdatePayload {
+  llm_provider: string
+  llm_model: string
+  llm_base_url?: string
+  llm_api_key?: string
+  llm_temperature: number
+  adzuna_app_id?: string
+  adzuna_api_key?: string
+  adzuna_country: string
+  search_provider: string
+  cv_prompt?: string
+  cl_prompt?: string
+  cv_language: string
+  cl_language: string
+}
+
+export async function updateConfig(payload: ConfigUpdatePayload): Promise<void> {
+  await request<{ ok: boolean }>('/config/update', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 // ── Local types (mirrors Pydantic models — regenerate with npm run api:types) ─
@@ -402,9 +430,9 @@ export interface AutoSearchRunStart {
 
 export interface ApplicationPackage {
   job_id: string
-  resume_pdf_base64: string
+  resume_html: string
+  cover_letter_html: string
   cover_letter_text: string
-  cover_letter_pdf_base64: string
 }
 
 export interface LLMConfigView {

@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { ResumeUpload } from '../components/ResumeUpload'
 import { HITLForm } from '../components/HITLForm'
+import { SettingsButton } from '../components/SettingsButton'
 import { type IngestionResponse } from '../api/client'
 
 interface Props {
   onProfileReady: () => void
+  onOpenSettings: () => void
+  configComplete: boolean
 }
 
 const PAGE_BG: React.CSSProperties = {
@@ -38,7 +41,7 @@ const BTN_GHOST: React.CSSProperties = {
   boxShadow: 'var(--neumo-raised-sm)',
 }
 
-export function IngestPage({ onProfileReady }: Props) {
+export function IngestPage({ onProfileReady, onOpenSettings, configComplete }: Props) {
   const [ingestion, setIngestion] = useState<IngestionResponse | null>(null)
 
   function handleIngestionResult(response: IngestionResponse) {
@@ -84,7 +87,28 @@ export function IngestPage({ onProfileReady }: Props) {
   return (
     <div style={PAGE_BG}>
       <div style={NEUMO_PANEL}>
-        <h1 style={{ fontSize: 22, margin: '0 0 8px', color: 'var(--neumo-text)', fontWeight: 700 }}>Import your resume</h1>
+        {!configComplete && (
+          <div style={{
+            background: 'rgba(245,158,11,0.12)',
+            border: '1px solid var(--color-warning)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--neumo-text)', fontWeight: 600 }}>
+              ⚠️ Configure LLM before uploading
+            </span>
+            <SettingsButton onClick={onOpenSettings} label="Configure" />
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <h1 style={{ fontSize: 22, margin: 0, color: 'var(--neumo-text)', fontWeight: 700 }}>Import your resume</h1>
+          <SettingsButton onClick={onOpenSettings} />
+        </div>
         <p style={{ color: 'var(--neumo-text-s)', fontSize: 14, margin: '0 0 24px', lineHeight: 1.6 }}>
           Your resume will be parsed and structured using the Google XYZ formula.
           Metrics that are missing will be flagged for your review — we never invent numbers.

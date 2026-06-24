@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { downloadMasterResume, updatePrompts, type ProfileMaster, type WorkExperience, type Skill } from '../api/client'
+import { getMasterResumeHtml, openCvPreview, updatePrompts, type ProfileMaster, type WorkExperience, type Skill } from '../api/client'
+import { SettingsButton } from '../components/SettingsButton'
 import { DEFAULT_CV_PROMPT, DEFAULT_CL_PROMPT } from '../constants/promptDefaults'
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   onReimport: () => void
   onProfileUpdated: (p: ProfileMaster) => void
   autoSearchBadge?: number
+  onOpenSettings: () => void
 }
 
 // ── Style constants ────────────────────────────────────────────────────────
@@ -239,7 +241,7 @@ function PromptEditor({ label, value, defaultValue, onChange, onSave }: PromptEd
 
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, onProfileUpdated, autoSearchBadge }: Props) {
+export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, onProfileUpdated, autoSearchBadge, onOpenSettings }: Props) {
   const [downloading, setDownloading] = useState(false)
   const [cvPrompt, setCvPrompt] = useState(profile.cv_prompt)
   const [clPrompt, setClPrompt] = useState(profile.cover_letter_prompt)
@@ -247,13 +249,8 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
   async function handleDownload() {
     setDownloading(true)
     try {
-      const blob = await downloadMasterResume()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${profile.contact.full_name.replace(/ /g, '_')}_MasterResume.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
+      const html = await getMasterResumeHtml()
+      await openCvPreview(html)
     } finally {
       setDownloading(false)
     }
@@ -316,7 +313,7 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
           onMouseUp={e => { e.currentTarget.style.boxShadow = 'var(--neumo-raised-sm)' }}
           onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--neumo-raised-sm)' }}
         >
-          {downloading ? 'Generating…' : 'Download Resume PDF'}
+          {downloading ? 'Generating…' : 'Preview Master Resume'}
         </button>
 
         <button
@@ -328,6 +325,10 @@ export function ProfilePage({ profile, onSearchJobs, onAutoSearch, onReimport, o
         >
           Re-import
         </button>
+
+        <div style={{ marginLeft: 'auto' }}>
+          <SettingsButton onClick={onOpenSettings} />
+        </div>
       </div>
 
       <div style={CONTENT_WRAP}>
