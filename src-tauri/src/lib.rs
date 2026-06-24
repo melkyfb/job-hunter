@@ -1,4 +1,5 @@
 use tauri::Manager;
+use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_shell::ShellExt;
 
 #[tauri::command]
@@ -25,6 +26,14 @@ fn open_cv_preview(app: tauri::AppHandle, html: String) -> Result<(), String> {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    Target::new(TargetKind::LogDir { file_name: Some("app".into()) }),
+                    Target::new(TargetKind::Stderr),
+                ])
+                .build(),
+        )
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
