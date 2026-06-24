@@ -1,4 +1,3 @@
-// frontend/src/pages/SettingsPage.tsx
 import { useEffect, useState } from 'react'
 import { loadConfig, saveConfig, DEFAULT_CONFIG, type AppConfig, type LLMProvider } from '../store/appConfig'
 import { updateConfig } from '../api/client'
@@ -6,6 +5,10 @@ import { updateConfig } from '../api/client'
 interface Props {
   onBack: () => void
 }
+
+type Tab = 'llm' | 'job' | 'prompts'
+
+// ── styles ────────────────────────────────────────────────────────────────────
 
 const PAGE_BG: React.CSSProperties = {
   background: 'var(--blue-gradient)',
@@ -18,9 +21,8 @@ const PAGE_BG: React.CSSProperties = {
 const NEUMO_PANEL: React.CSSProperties = {
   background: 'var(--neumo-bg)',
   boxShadow: 'var(--neumo-raised)',
-  borderRadius: 16,
+  borderRadius: '0 16px 16px 16px',
   padding: '24px 28px',
-  marginBottom: 20,
 }
 
 const NEUMO_INSET: React.CSSProperties = {
@@ -89,13 +91,57 @@ const BTN_GHOST: React.CSSProperties = {
   boxShadow: 'var(--neumo-raised-sm)',
 }
 
-const PROVIDER_LINKS: Record<LLMProvider, { label: string; url: string }> = {
-  openai: { label: 'Get API key at platform.openai.com', url: 'https://platform.openai.com/api-keys' },
-  ollama: { label: 'Download Ollama at ollama.ai', url: 'https://ollama.ai' },
-  lmstudio: { label: 'Download LM Studio at lmstudio.ai', url: 'https://lmstudio.ai' },
-  groq: { label: 'Get API key at console.groq.com', url: 'https://console.groq.com/keys' },
-  mistral: { label: 'Get API key at console.mistral.ai', url: 'https://console.mistral.ai/api-keys' },
-  compatible: { label: 'Any OpenAI-compatible endpoint', url: 'https://platform.openai.com/docs/api-reference' },
+// ── data ─────────────────────────────────────────────────────────────────────
+
+const PROVIDER_INFO: Record<LLMProvider, { label: string; helpText: string; url: string; apiKeyPlaceholder: string; apiKeyLabel: string; needsKey: boolean }> = {
+  openai: {
+    label: 'OpenAI',
+    helpText: 'Get API key at platform.openai.com',
+    url: 'https://platform.openai.com/api-keys',
+    apiKeyLabel: 'API Key',
+    apiKeyPlaceholder: 'sk-...',
+    needsKey: true,
+  },
+  ollama: {
+    label: 'Ollama (local)',
+    helpText: 'Download Ollama at ollama.ai',
+    url: 'https://ollama.ai',
+    apiKeyLabel: 'API Key (optional — leave empty for local)',
+    apiKeyPlaceholder: 'ollama (or leave empty)',
+    needsKey: false,
+  },
+  lmstudio: {
+    label: 'LM Studio (local)',
+    helpText: 'Download LM Studio at lmstudio.ai',
+    url: 'https://lmstudio.ai',
+    apiKeyLabel: 'API Key (optional — leave empty for local)',
+    apiKeyPlaceholder: 'lm-studio (or leave empty)',
+    needsKey: false,
+  },
+  groq: {
+    label: 'Groq',
+    helpText: 'Get API key at console.groq.com',
+    url: 'https://console.groq.com/keys',
+    apiKeyLabel: 'API Key',
+    apiKeyPlaceholder: 'gsk_...',
+    needsKey: true,
+  },
+  mistral: {
+    label: 'Mistral',
+    helpText: 'Get API key at console.mistral.ai',
+    url: 'https://console.mistral.ai/api-keys',
+    apiKeyLabel: 'API Key',
+    apiKeyPlaceholder: '...',
+    needsKey: true,
+  },
+  compatible: {
+    label: 'OpenAI-compatible',
+    helpText: 'Any OpenAI-compatible endpoint (e.g. LiteLLM, vLLM)',
+    url: 'https://platform.openai.com/docs/api-reference',
+    apiKeyLabel: 'API Key (if required by your endpoint)',
+    apiKeyPlaceholder: 'sk-... or leave empty',
+    needsKey: false,
+  },
 }
 
 const PROVIDER_DEFAULT_MODELS: Record<LLMProvider, string> = {
@@ -108,7 +154,7 @@ const PROVIDER_DEFAULT_MODELS: Record<LLMProvider, string> = {
 }
 
 const PROVIDER_DEFAULT_URLS: Record<LLMProvider, string> = {
-  openai: '',
+  openai: 'https://api.openai.com/v1',
   ollama: 'http://localhost:11434/v1',
   lmstudio: 'http://localhost:1234/v1',
   groq: 'https://api.groq.com/openai/v1',
@@ -145,11 +191,14 @@ const ADZUNA_COUNTRIES = [
   { code: 'za', label: 'South Africa (ZA)' },
 ]
 
+// ── component ─────────────────────────────────────────────────────────────────
+
 export function SettingsPage({ onBack }: Props) {
   const [cfg, setCfg] = useState<AppConfig>(DEFAULT_CONFIG)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [tab, setTab] = useState<Tab>('llm')
 
   useEffect(() => {
     loadConfig().then(setCfg)
@@ -165,6 +214,7 @@ export function SettingsPage({ onBack }: Props) {
       llmProvider: provider,
       llmModel: PROVIDER_DEFAULT_MODELS[provider],
       llmBaseUrl: PROVIDER_DEFAULT_URLS[provider],
+      llmApiKey: '',
     }))
   }
 
@@ -197,16 +247,20 @@ export function SettingsPage({ onBack }: Props) {
     }
   }
 
-  const providerLink = PROVIDER_LINKS[cfg.llmProvider]
-  const needsApiKey = cfg.llmProvider === 'openai' || cfg.llmProvider === 'groq' || cfg.llmProvider === 'mistral'
-  const needsUrl = cfg.llmProvider !== 'openai'
+  const providerInfo = PROVIDER_INFO[cfg.llmProvider]
+
+  const TABS: { id: Tab; label: string }[] = [
+    { id: 'llm', label: 'LLM Provider' },
+    { id: 'job', label: 'Job Provider' },
+    { id: 'prompts', label: 'Default Prompts' },
+  ]
 
   return (
     <div style={PAGE_BG}>
       <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 28 }}>
           <button
             onClick={onBack}
             style={BTN_GHOST}
@@ -219,140 +273,228 @@ export function SettingsPage({ onBack }: Props) {
           <h1 style={{ margin: 0, fontSize: 22, color: 'var(--neumo-text)', fontWeight: 700 }}>Settings</h1>
         </div>
 
-        {/* LLM Provider */}
+        {/* Tab bar */}
+        <div style={{ display: 'flex', gap: 0, marginBottom: 0 }}>
+          {TABS.map(t => {
+            const active = tab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                style={{
+                  padding: '10px 22px',
+                  background: active ? 'var(--neumo-bg)' : 'rgba(255,255,255,0.35)',
+                  color: active ? 'var(--blue-primary)' : 'var(--neumo-text-s)',
+                  border: 'none',
+                  borderRadius: active ? '12px 12px 0 0' : '10px 10px 0 0',
+                  fontWeight: active ? 700 : 500,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  boxShadow: active ? 'var(--neumo-raised)' : 'none',
+                  clipPath: 'inset(-8px -8px 0 -8px)',
+                  transition: 'all 0.15s',
+                  marginRight: 4,
+                }}
+              >
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Tab panels */}
         <div style={NEUMO_PANEL}>
-          <p style={SECTION_TITLE}>LLM Provider</p>
-          <div style={FIELD}>
-            <label style={LABEL}>Provider</label>
-            <select
-              value={cfg.llmProvider}
-              onChange={e => handleProviderChange(e.target.value as LLMProvider)}
-              style={NEUMO_INSET}
-            >
-              <option value="ollama">Ollama (local)</option>
-              <option value="lmstudio">LM Studio (local)</option>
-              <option value="openai">OpenAI</option>
-              <option value="groq">Groq</option>
-              <option value="mistral">Mistral</option>
-              <option value="compatible">OpenAI-compatible</option>
-            </select>
-            <a href={providerLink.url} target="_blank" rel="noreferrer" style={HELP_LINK}>
-              ↗ {providerLink.label}
-            </a>
-          </div>
-          {needsApiKey && (
-            <div style={FIELD}>
-              <label style={LABEL}>API Key</label>
-              <input
-                type="password"
-                value={cfg.llmApiKey}
-                onChange={e => set('llmApiKey', e.target.value)}
-                placeholder="sk-..."
-                style={NEUMO_INSET}
-              />
-            </div>
+
+          {/* ── LLM Provider ─────────────────────────────────── */}
+          {tab === 'llm' && (
+            <>
+              <p style={SECTION_TITLE}>LLM Provider</p>
+
+              <div style={FIELD}>
+                <label style={LABEL}>Provider</label>
+                <select
+                  value={cfg.llmProvider}
+                  onChange={e => handleProviderChange(e.target.value as LLMProvider)}
+                  style={NEUMO_INSET}
+                >
+                  <option value="ollama">Ollama (local)</option>
+                  <option value="lmstudio">LM Studio (local)</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="groq">Groq</option>
+                  <option value="mistral">Mistral</option>
+                  <option value="compatible">OpenAI-compatible</option>
+                </select>
+                <a href={providerInfo.url} target="_blank" rel="noreferrer" style={HELP_LINK}>
+                  ↗ {providerInfo.helpText}
+                </a>
+              </div>
+
+              <p style={{ ...SECTION_TITLE, marginTop: 20 }}>Authentication</p>
+
+              <div style={FIELD}>
+                <label style={LABEL}>
+                  {providerInfo.apiKeyLabel}
+                  {providerInfo.needsKey && (
+                    <span style={{ color: 'var(--color-error)', marginLeft: 4 }}>*</span>
+                  )}
+                </label>
+                <input
+                  type="password"
+                  value={cfg.llmApiKey}
+                  onChange={e => set('llmApiKey', e.target.value)}
+                  placeholder={providerInfo.apiKeyPlaceholder}
+                  style={NEUMO_INSET}
+                />
+              </div>
+
+              <div style={FIELD}>
+                <label style={LABEL}>Base URL</label>
+                <input
+                  type="text"
+                  value={cfg.llmBaseUrl}
+                  onChange={e => set('llmBaseUrl', e.target.value)}
+                  placeholder="http://localhost:11434/v1"
+                  style={NEUMO_INSET}
+                />
+              </div>
+
+              <p style={{ ...SECTION_TITLE, marginTop: 20 }}>Model</p>
+
+              <div style={FIELD}>
+                <label style={LABEL}>Model name</label>
+                <input
+                  type="text"
+                  value={cfg.llmModel}
+                  onChange={e => set('llmModel', e.target.value)}
+                  placeholder="llama3.2"
+                  style={NEUMO_INSET}
+                />
+              </div>
+
+              <div style={FIELD}>
+                <label style={LABEL}>Temperature <span style={{ fontWeight: 400, color: 'var(--neumo-text-s)' }}>({cfg.llmTemperature})</span></label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={cfg.llmTemperature}
+                  onChange={e => set('llmTemperature', parseFloat(e.target.value))}
+                  style={{ width: '100%', accentColor: 'var(--blue-primary)' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--neumo-text-s)', marginTop: 2 }}>
+                  <span>Precise (0)</span>
+                  <span>Creative (1)</span>
+                </div>
+              </div>
+            </>
           )}
-          {needsUrl && (
-            <div style={FIELD}>
-              <label style={LABEL}>Base URL</label>
-              <input
-                type="text"
-                value={cfg.llmBaseUrl}
-                onChange={e => set('llmBaseUrl', e.target.value)}
-                placeholder="http://localhost:11434/v1"
-                style={NEUMO_INSET}
-              />
-            </div>
+
+          {/* ── Job Provider ─────────────────────────────────── */}
+          {tab === 'job' && (
+            <>
+              <p style={SECTION_TITLE}>Adzuna Job Search</p>
+              <p style={{ fontSize: 12, color: 'var(--neumo-text-s)', marginTop: 0, marginBottom: 16 }}>
+                Adzuna provides real job listings. Without credentials the app uses mock data.
+              </p>
+
+              <div style={FIELD}>
+                <label style={LABEL}>App ID <span style={{ color: 'var(--color-error)', marginLeft: 4 }}>*</span></label>
+                <input
+                  type="text"
+                  value={cfg.adzunaAppId}
+                  onChange={e => set('adzunaAppId', e.target.value)}
+                  style={NEUMO_INSET}
+                  placeholder="xxxxxxxx"
+                />
+              </div>
+
+              <div style={FIELD}>
+                <label style={LABEL}>API Key <span style={{ color: 'var(--color-error)', marginLeft: 4 }}>*</span></label>
+                <input
+                  type="password"
+                  value={cfg.adzunaApiKey}
+                  onChange={e => set('adzunaApiKey', e.target.value)}
+                  style={NEUMO_INSET}
+                  placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                />
+              </div>
+
+              <div style={FIELD}>
+                <label style={LABEL}>Country</label>
+                <select
+                  value={cfg.adzunaCountry}
+                  onChange={e => set('adzunaCountry', e.target.value)}
+                  style={NEUMO_INSET}
+                >
+                  {ADZUNA_COUNTRIES.map(c => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <a href="https://developer.adzuna.com/overview" target="_blank" rel="noreferrer" style={HELP_LINK}>
+                ↗ Create Adzuna API key at developer.adzuna.com
+              </a>
+            </>
           )}
-          <div style={FIELD}>
-            <label style={LABEL}>Model</label>
-            <input
-              type="text"
-              value={cfg.llmModel}
-              onChange={e => set('llmModel', e.target.value)}
-              placeholder="llama3.2"
-              style={NEUMO_INSET}
-            />
-          </div>
-        </div>
 
-        {/* Adzuna */}
-        <div style={NEUMO_PANEL}>
-          <p style={SECTION_TITLE}>Job Search — Adzuna</p>
-          <div style={FIELD}>
-            <label style={LABEL}>App ID</label>
-            <input type="text" value={cfg.adzunaAppId} onChange={e => set('adzunaAppId', e.target.value)} style={NEUMO_INSET} placeholder="xxxxxxxx" />
-          </div>
-          <div style={FIELD}>
-            <label style={LABEL}>API Key</label>
-            <input type="password" value={cfg.adzunaApiKey} onChange={e => set('adzunaApiKey', e.target.value)} style={NEUMO_INSET} placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-          </div>
-          <div style={FIELD}>
-            <label style={LABEL}>Country</label>
-            <select value={cfg.adzunaCountry} onChange={e => set('adzunaCountry', e.target.value)} style={NEUMO_INSET}>
-              {ADZUNA_COUNTRIES.map(c => (
-                <option key={c.code} value={c.code}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-          <a href="https://developer.adzuna.com/overview" target="_blank" rel="noreferrer" style={HELP_LINK}>
-            ↗ Create Adzuna API key at developer.adzuna.com
-          </a>
-        </div>
+          {/* ── Default Prompts ───────────────────────────────── */}
+          {tab === 'prompts' && (
+            <>
+              <p style={SECTION_TITLE}>Output Language</p>
+              <p style={{ fontSize: 12, color: 'var(--neumo-text-s)', marginTop: 0, marginBottom: 16 }}>
+                The LLM will generate the CV and cover letter in the selected language.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div style={FIELD}>
+                  <label style={LABEL}>CV / Resume Language</label>
+                  <select value={cfg.cvLanguage} onChange={e => set('cvLanguage', e.target.value)} style={NEUMO_INSET}>
+                    {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+                <div style={FIELD}>
+                  <label style={LABEL}>Cover Letter Language</label>
+                  <select value={cfg.clLanguage} onChange={e => set('clLanguage', e.target.value)} style={NEUMO_INSET}>
+                    {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
+                  </select>
+                </div>
+              </div>
 
-        {/* Prompts */}
-        <div style={NEUMO_PANEL}>
-          <p style={SECTION_TITLE}>Default Prompts</p>
-          <div style={FIELD}>
-            <label style={LABEL}>CV / Resume Prompt</label>
-            <p style={{ fontSize: 11, color: 'var(--neumo-text-s)', margin: '0 0 8px' }}>
-              Use <code style={{ background: 'rgba(0,0,0,0.07)', padding: '1px 4px', borderRadius: 3 }}>{'{JOB_DESCRIPTION}'}</code> as placeholder for the job posting.
-              Leave empty to use the built-in default.
-            </p>
-            <textarea
-              value={cfg.cvPrompt}
-              onChange={e => set('cvPrompt', e.target.value)}
-              placeholder="Leave empty to use built-in default prompt..."
-              rows={6}
-              style={{ ...NEUMO_INSET, resize: 'vertical' as const, lineHeight: 1.5 }}
-            />
-          </div>
-          <div style={FIELD}>
-            <label style={LABEL}>Cover Letter Prompt</label>
-            <textarea
-              value={cfg.clPrompt}
-              onChange={e => set('clPrompt', e.target.value)}
-              placeholder="Leave empty to use built-in default prompt..."
-              rows={6}
-              style={{ ...NEUMO_INSET, resize: 'vertical' as const, lineHeight: 1.5 }}
-            />
-          </div>
-        </div>
+              <p style={SECTION_TITLE}>Prompts</p>
+              <p style={{ fontSize: 12, color: 'var(--neumo-text-s)', marginTop: 0, marginBottom: 12 }}>
+                Use <code style={{ background: 'rgba(0,0,0,0.07)', padding: '1px 4px', borderRadius: 3 }}>{'{JOB_DESCRIPTION}'}</code> as placeholder.
+                Leave empty to use built-in defaults.
+              </p>
 
-        {/* Language */}
-        <div style={NEUMO_PANEL}>
-          <p style={SECTION_TITLE}>Output Language</p>
-          <p style={{ fontSize: 12, color: 'var(--neumo-text-s)', marginTop: 0, marginBottom: 16 }}>
-            The LLM will generate the CV and cover letter in the selected language.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div style={FIELD}>
-              <label style={LABEL}>CV / Resume Language</label>
-              <select value={cfg.cvLanguage} onChange={e => set('cvLanguage', e.target.value)} style={NEUMO_INSET}>
-                {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-            <div style={FIELD}>
-              <label style={LABEL}>Cover Letter Language</label>
-              <select value={cfg.clLanguage} onChange={e => set('clLanguage', e.target.value)} style={NEUMO_INSET}>
-                {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-          </div>
+              <div style={FIELD}>
+                <label style={LABEL}>CV / Resume Prompt</label>
+                <textarea
+                  value={cfg.cvPrompt}
+                  onChange={e => set('cvPrompt', e.target.value)}
+                  placeholder="Leave empty to use built-in default prompt..."
+                  rows={6}
+                  style={{ ...NEUMO_INSET, resize: 'vertical' as const, lineHeight: 1.5 }}
+                />
+              </div>
+
+              <div style={FIELD}>
+                <label style={LABEL}>Cover Letter Prompt</label>
+                <textarea
+                  value={cfg.clPrompt}
+                  onChange={e => set('clPrompt', e.target.value)}
+                  placeholder="Leave empty to use built-in default prompt..."
+                  rows={6}
+                  style={{ ...NEUMO_INSET, resize: 'vertical' as const, lineHeight: 1.5 }}
+                />
+              </div>
+            </>
+          )}
+
         </div>
 
         {/* Save */}
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 24 }}>
           <button
             onClick={handleSave}
             disabled={saving}
