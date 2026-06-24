@@ -5,6 +5,7 @@
     "@tauri-apps/cli": "^2"
   },
   "scripts": {
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev": "pwsh -NoProfile -File scripts/ensure-dev-stub.ps1 && pnpm tauri dev"
   }
 }
