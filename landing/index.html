@@ -3,65 +3,178 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Job Hunter Assistant — AI-powered job application tool</title>
+  <title>Job Hunter Assistant — AI-Powered Job Application Tool, 100% Local</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --blue: #1E4D9E;
-      --blue-dark: #163d80;
-      --blue-light: #EBF1FB;
-      --bg: #dde4f0;
-      --border: #C3D4EF;
-      --text: #2d3a52;
-      --text-s: #5a6a82;
+      /* Colors and Design System from app's index.css */
+      --neumo-bg:           #dde4f0;
+      --neumo-shadow-dark:  rgba(163, 177, 198, 0.65);
+      --neumo-shadow-light: rgba(255, 255, 255, 0.85);
+
+      --neumo-raised:
+        8px 8px 20px var(--neumo-shadow-dark),
+        -8px -8px 20px var(--neumo-shadow-light);
+
+      --neumo-raised-sm:
+        4px 4px 12px var(--neumo-shadow-dark),
+        -4px -4px 12px var(--neumo-shadow-light);
+
+      --neumo-inset:
+        inset 5px 5px 12px var(--neumo-shadow-dark),
+        inset -5px -5px 12px var(--neumo-shadow-light);
+
+      --neumo-pressed:
+        inset 3px 3px 8px var(--neumo-shadow-dark),
+        inset -3px -3px 8px var(--neumo-shadow-light);
+
+      --glass-bg:      rgba(255, 255, 255, 0.18);
+      --glass-border:  rgba(255, 255, 255, 0.35);
+      --glass-blur:    blur(14px) saturate(180%);
+      --glass-shadow:  0 8px 32px rgba(30, 77, 158, 0.12);
+
+      --blue-primary:   #1E4D9E;
+      --blue-medium:    #3d6cbf;
+      --blue-light:     #EBF1FB;
+      --blue-border:    #C3D4EF;
+      --blue-gradient:  linear-gradient(135deg, #dde4f0 0%, #c8d8ee 55%, #d5dff0 100%);
+
+      --text-h:        #08060d;
+      --text:          #2d3a52;
+      --text-s:        #5a6a82;
+      --sans:          system-ui, 'Segoe UI', Roboto, sans-serif;
     }
 
     body {
-      font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #dde4f0 0%, #c8d8ee 55%, #d5dff0 100%);
+      font-family: var(--sans);
+      background: var(--blue-gradient);
       color: var(--text);
       min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      padding: 0;
+      margin: 0;
     }
 
-    .hero {
-      text-align: center;
-      padding: 80px 24px 60px;
+    /* Container */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Navigation Bar */
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 0;
+      margin-bottom: 40px;
     }
 
     .logo {
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      text-decoration: none;
     }
 
-    .logo svg { width: 48px; height: 48px; }
+    .logo svg {
+      width: 40px;
+      height: 40px;
+      filter: drop-shadow(2px 2px 5px rgba(163,177,198,0.5));
+    }
 
     .logo-text {
-      font-size: 28px;
+      font-size: 22px;
       font-weight: 800;
-      color: var(--blue);
+      color: var(--blue-primary);
       letter-spacing: -0.5px;
     }
 
+    .github-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--neumo-bg);
+      border-radius: 30px;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: var(--neumo-raised-sm);
+      transition: all 0.2s ease;
+    }
+
+    .github-link:hover {
+      box-shadow: var(--neumo-pressed);
+      color: var(--blue-primary);
+    }
+
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      padding: 40px 0 60px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--blue-primary);
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      backdrop-filter: var(--glass-blur);
+      box-shadow: var(--glass-shadow);
+      margin-bottom: 24px;
+      letter-spacing: 1px;
+    }
+
+    h1 {
+      font-size: 48px;
+      line-height: 1.15;
+      font-weight: 800;
+      color: var(--text-h);
+      letter-spacing: -1px;
+      margin-bottom: 24px;
+    }
+
+    h1 span {
+      color: var(--blue-primary);
+      background: linear-gradient(135deg, var(--blue-primary) 0%, var(--blue-medium) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
     .tagline {
-      font-size: 18px;
+      font-size: 19px;
       color: var(--text-s);
-      max-width: 520px;
-      margin: 0 auto 16px;
+      margin-bottom: 16px;
       line-height: 1.6;
     }
 
-    .sub {
+    .privacy-promise {
       font-size: 14px;
-      color: var(--text-s);
-      margin-bottom: 48px;
+      color: var(--blue-medium);
+      font-weight: 600;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
     }
 
+    /* Downloads */
     .downloads {
       display: flex;
-      gap: 14px;
+      gap: 16px;
       justify-content: center;
       flex-wrap: wrap;
       margin-bottom: 16px;
@@ -70,180 +183,424 @@
     .dl-btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 13px 24px;
-      background: var(--blue);
+      gap: 10px;
+      padding: 14px 28px;
+      background: var(--blue-primary);
       color: white;
       text-decoration: none;
-      border-radius: 12px;
+      border-radius: 14px;
       font-weight: 700;
       font-size: 15px;
       box-shadow: 6px 6px 16px rgba(163,177,198,0.5), -6px -6px 16px rgba(255,255,255,0.8);
-      transition: background 0.15s, transform 0.1s;
+      transition: all 0.2s ease;
     }
 
-    .dl-btn:hover { background: var(--blue-dark); transform: translateY(-1px); }
+    .dl-btn:hover {
+      background: var(--blue-medium);
+      transform: translateY(-2px);
+      box-shadow: 8px 8px 24px rgba(163,177,198,0.7), -8px -8px 24px rgba(255,255,255,0.9);
+    }
+
+    .dl-btn:active {
+      transform: translateY(0);
+    }
 
     .dl-btn.secondary {
-      background: #dde4f0;
-      color: var(--blue);
-      border: 1.5px solid var(--border);
+      background: var(--neumo-bg);
+      color: var(--blue-primary);
+      border: 1.5px solid var(--blue-border);
+      box-shadow: var(--neumo-raised-sm);
     }
 
-    .dl-btn.secondary:hover { background: #c8d8ee; }
+    .dl-btn.secondary:hover {
+      background: #c8d8ee;
+      box-shadow: var(--neumo-pressed);
+    }
 
     .version-note {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-s);
-      margin-bottom: 64px;
+      margin-top: 16px;
+    }
+
+    /* Interactive Screenshot Showcase */
+    .showcase {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      backdrop-filter: var(--glass-blur);
+      box-shadow: var(--glass-shadow);
+      padding: 32px;
+      margin-bottom: 80px;
+    }
+
+    .showcase-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-h);
+      margin-bottom: 24px;
+    }
+
+    .showcase-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+
+    .tab-btn {
+      background: var(--neumo-bg);
+      border: none;
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: var(--neumo-raised-sm);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tab-btn:hover {
+      color: var(--blue-primary);
+      transform: translateY(-1px);
+    }
+
+    .tab-btn.active {
+      box-shadow: var(--neumo-pressed);
+      color: var(--blue-primary);
+      font-weight: 700;
+    }
+
+    .screen-wrapper {
+      background: rgba(255, 255, 255, 0.4);
+      padding: 12px;
+      border-radius: 16px;
+      box-shadow: inset 2px 2px 8px rgba(0,0,0,0.05);
+      border: 1px solid rgba(255,255,255,0.6);
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 380px;
+    }
+
+    .screen-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      display: none;
+      animation: fadeIn 0.4s ease forwards;
+    }
+
+    .screen-img.active {
+      display: block;
+    }
+
+    .screen-caption {
+      text-align: center;
+      font-size: 15px;
+      color: var(--text);
+      max-width: 700px;
+      margin: 0 auto;
+      font-weight: 550;
+      line-height: 1.6;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.98); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Features Grid */
+    .features-section {
+      padding-bottom: 80px;
+    }
+
+    .features-section-title {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-h);
+      margin-bottom: 48px;
     }
 
     .features {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 0 24px 80px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 30px;
     }
 
     .feature-card {
-      background: #dde4f0;
-      border-radius: 16px;
-      padding: 28px 24px;
-      box-shadow: 8px 8px 20px rgba(163,177,198,0.65), -8px -8px 20px rgba(255,255,255,0.85);
+      background: var(--neumo-bg);
+      border-radius: 20px;
+      padding: 32px 24px;
+      box-shadow: var(--neumo-raised);
       text-align: left;
+      transition: transform 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
 
-    .feature-icon { font-size: 32px; margin-bottom: 12px; }
+    .feature-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      font-size: 36px;
+      margin-bottom: 18px;
+      width: 60px;
+      height: 60px;
+      background: var(--glass-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      box-shadow: var(--neumo-raised-sm);
+    }
 
     .feature-title {
-      font-size: 16px;
+      font-size: 18px;
       font-weight: 700;
-      color: var(--text);
-      margin-bottom: 8px;
+      color: var(--text-h);
+      margin-bottom: 12px;
     }
 
     .feature-desc {
-      font-size: 13px;
+      font-size: 14px;
       color: var(--text-s);
       line-height: 1.6;
     }
 
+    /* Footer */
     .footer {
       text-align: center;
-      padding: 24px;
-      border-top: 1px solid var(--border);
-      font-size: 13px;
+      padding: 40px 24px;
+      border-top: 1px solid var(--blue-border);
+      font-size: 14px;
       color: var(--text-s);
+      background: rgba(221, 228, 240, 0.4);
     }
 
-    .footer a { color: var(--blue); text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
+    .footer p {
+      margin-bottom: 8px;
+    }
+
+    .footer a {
+      color: var(--blue-primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      h1 { font-size: 36px; }
+      .tagline { font-size: 16px; }
+      .showcase { padding: 16px; }
+      .showcase-tabs { flex-direction: column; align-items: stretch; }
+      .tab-btn { justify-content: center; }
+      .screen-wrapper { min-height: auto; }
+    }
   </style>
 </head>
 <body>
 
-  <div class="hero">
-    <div class="logo">
-      <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="48" height="48" rx="12" fill="#1E4D9E"/>
-        <path d="M12 34V16a2 2 0 012-2h20a2 2 0 012 2v18l-4-3-4 3-4-3-4 3-4-3-4 3z" fill="white" opacity="0.9"/>
-        <rect x="17" y="20" width="14" height="2" rx="1" fill="#1E4D9E"/>
-        <rect x="17" y="24" width="10" height="2" rx="1" fill="#1E4D9E"/>
-        <rect x="17" y="28" width="7" height="2" rx="1" fill="#1E4D9E"/>
-      </svg>
-      <span class="logo-text">Job Hunter Assistant</span>
-    </div>
-
-    <p class="tagline">
-      AI-powered job application tool. Tailored CVs and cover letters in seconds. Runs 100% on your machine.
-    </p>
-
-    <p class="sub">Your data never leaves your computer — no cloud, no subscriptions.</p>
-
-    <div class="downloads">
-      <a id="dl-windows" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.549H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-        Download for Windows
+  <div class="container">
+    <!-- Header/Navigation -->
+    <header class="nav-bar">
+      <a href="#" class="logo">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="48" height="48" rx="12" fill="#1E4D9E"/>
+          <path d="M12 34V16a2 2 0 012-2h20a2 2 0 012 2v18l-4-3-4 3-4-3-4 3-4-3-4 3z" fill="white" opacity="0.9"/>
+          <rect x="17" y="20" width="14" height="2" rx="1" fill="#1E4D9E"/>
+          <rect x="17" y="24" width="10" height="2" rx="1" fill="#1E4D9E"/>
+          <rect x="17" y="28" width="7" height="2" rx="1" fill="#1E4D9E"/>
+        </svg>
+        <span class="logo-text">Job Hunter</span>
       </a>
-      <a id="dl-linux" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0a12 12 0 100 24A12 12 0 0012 0zm0 2c5.514 0 10 4.486 10 10S17.514 22 12 22 2 17.514 2 12 6.486 2 12 2zm0 2a8 8 0 100 16A8 8 0 0012 4z"/></svg>
-        Download for Linux
+      <a href="https://github.com/melkyfb/job-hunter" target="_blank" class="github-link">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        GitHub
       </a>
-      <a id="dl-mac" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn secondary">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-        Download for macOS
-      </a>
-    </div>
+    </header>
 
-    <p class="version-note" id="version-note">
-      Latest release — <a href="https://github.com/melkyfb/job-hunter/releases" style="color: var(--blue);">all versions</a>
-    </p>
+    <!-- Hero Section -->
+    <section class="hero">
+      <span class="badge">Smart & Private Technology</span>
+      <h1>Land your next job with the power of <span>Artificial Intelligence</span></h1>
+      <p class="tagline">
+        Tailor CVs and cover letters to every job posting with surgical precision — in seconds.
+        Runs entirely on your machine, with no internet required.
+      </p>
+      
+      <p class="privacy-promise">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: var(--blue-primary);"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        Absolute Privacy — Your data and API keys never leave your computer.
+      </p>
+
+      <div class="downloads">
+        <a id="dl-windows" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.549H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+          Download for Windows
+        </a>
+        <a id="dl-mac" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          Download for macOS
+        </a>
+        <a id="dl-linux" href="https://github.com/melkyfb/job-hunter/releases/latest" class="dl-btn secondary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0a12 12 0 100 24A12 12 0 0012 0zm0 2c5.514 0 10 4.486 10 10S17.514 22 12 22 2 17.514 2 12 6.486 2 12 2zm0 2a8 8 0 100 16A8 8 0 0012 4z"/></svg>
+          Download for Linux
+        </a>
+      </div>
+
+      <p class="version-note" id="version-note">
+        Loading latest release...
+      </p>
+    </section>
+
+    <!-- Interactive Showcase Section -->
+    <section class="showcase">
+      <h2 class="showcase-title">A look inside the app</h2>
+      
+      <!-- Interactive Tabs -->
+      <div class="showcase-tabs">
+        <button class="tab-btn active" data-target="step-upload" data-caption="1. Upload your resume and reference documents once — the AI learns your professional profile and uses it to tailor every application.">
+          📁 1. Reference Documents
+        </button>
+        <button class="tab-btn" data-target="step-llm" data-caption="2. Connect your preferred AI provider. Supports OpenAI, Groq, Mistral, Anthropic, or fully local models via Ollama and LM Studio — no cloud required.">
+          🤖 2. AI Provider
+        </button>
+        <button class="tab-btn" data-target="step-prompts" data-caption="3. Fine-tune generation instructions for your CV and cover letter using the proven Google XYZ formula for maximum impact.">
+          📝 3. Prompt Templates
+        </button>
+        <button class="tab-btn" data-target="step-jobs" data-caption="4. Connect to Adzuna to automatically discover job postings and score them by compatibility with your profile.">
+          💼 4. Job Search
+        </button>
+      </div>
+
+      <!-- Screenshot Display -->
+      <div class="screen-wrapper">
+        <img id="step-upload" src="images/screenshot-upload-reference-documents.png" alt="Upload Reference Documents" class="screen-img active">
+        <img id="step-llm" src="images/screenshot-settings-llm-provider.png" alt="LLM Provider Settings" class="screen-img">
+        <img id="step-prompts" src="images/screenshot-settings-prompts-template-cv-cl.png" alt="Prompt Templates" class="screen-img">
+        <img id="step-jobs" src="images/screenshot-settings-job-provider.png" alt="Job Provider Settings" class="screen-img">
+      </div>
+
+      <!-- Live Caption -->
+      <div id="showcase-caption" class="screen-caption">
+        1. Upload your resume and reference documents once — the AI learns your professional profile and uses it to tailor every application.
+      </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section class="features-section">
+      <h2 class="features-section-title">Built to streamline your job search</h2>
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">✨</div>
+          <h3 class="feature-title">Google XYZ Formula</h3>
+          <p class="feature-desc">
+            AI-generated CVs and cover letters are crafted using the Google XYZ formula, focusing on measurable impact and tangible results — ready to pass ATS screening tools.
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3 class="feature-title">Automated Job Search & Scoring</h3>
+          <p class="feature-desc">
+            Automatically find relevant job postings via Adzuna and score each one by compatibility with your profile. Focus your energy on the opportunities that matter most.
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3 class="feature-title">100% Local & Private</h3>
+          <p class="feature-desc">
+            Use local models (Ollama, LM Studio) or any OpenAI-compatible endpoint. Your API keys, resume files, and application history never leave your machine.
+          </p>
+        </div>
+      </div>
+    </section>
   </div>
 
-  <div class="features">
-    <div class="feature-card">
-      <div class="feature-icon">🤖</div>
-      <div class="feature-title">AI-Generated CVs</div>
-      <div class="feature-desc">
-        Upload your resume once. The LLM tailors a CV and cover letter for each job posting using the Google XYZ formula.
-        Works with OpenAI, Ollama, LM Studio, Groq, Mistral, or any OpenAI-compatible endpoint.
-      </div>
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>Job Hunter Assistant is an open-source project licensed under the MIT License.</p>
+      <p>
+        Built with <a href="https://tauri.app" target="_blank">Tauri</a>,
+        <a href="https://react.dev" target="_blank">React</a> and Python.
+        View the <a href="https://github.com/melkyfb/job-hunter" target="_blank">source on GitHub</a>.
+      </p>
     </div>
-    <div class="feature-card">
-      <div class="feature-icon">🔍</div>
-      <div class="feature-title">Automated Job Search</div>
-      <div class="feature-desc">
-        Connects to Adzuna to find relevant jobs automatically. Scores each posting against your profile.
-        Pipeline view to track applications from first contact to offer.
-      </div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">🔒</div>
-      <div class="feature-title">100% Local</div>
-      <div class="feature-desc">
-        No cloud, no account, no subscription. Your resume, API keys, and application history stay on your machine.
-        Use a local LLM (Ollama) and your data never leaves your computer.
-      </div>
-    </div>
-  </div>
-
-  <div class="footer">
-    <p>
-      <a href="https://github.com/melkyfb/job-hunter">GitHub</a> ·
-      MIT License ·
-      Built with Tauri, React, Python
-    </p>
-  </div>
+  </footer>
 
   <script>
-    // Attempt to get latest release version from GitHub API
-    // Falls back to /releases/latest redirect (no JS required)
+    // Tab selector logic
+    const tabs = document.querySelectorAll('.tab-btn');
+    const images = document.querySelectorAll('.screen-img');
+    const captionEl = document.getElementById('showcase-caption');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        // Toggle active tab class
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Toggle active image
+        const targetId = tab.getAttribute('data-target');
+        images.forEach(img => {
+          if (img.id === targetId) {
+            img.classList.add('active');
+          } else {
+            img.classList.remove('active');
+          }
+        });
+
+        // Set caption text
+        captionEl.textContent = tab.getAttribute('data-caption');
+      });
+    });
+
+    // Fetch latest releases from GitHub API
     fetch('https://api.github.com/repos/melkyfb/job-hunter/releases/latest')
       .then(r => r.json())
       .then(data => {
-        const tag = data.tag_name
-        if (!tag) return
-        const assets = data.assets || []
+        const tag = data.tag_name;
+        if (!tag) return;
+        const assets = data.assets || [];
 
-        const find = (keyword) => {
-          const a = assets.find(a => a.name.toLowerCase().includes(keyword))
-          return a ? a.browser_download_url : null
-        }
+        const findAsset = (keyword) => {
+          const a = assets.find(a => a.name.toLowerCase().includes(keyword));
+          return a ? a.browser_download_url : null;
+        };
 
-        const msi = find('.msi') || find('_x64_en-us.msi') || find('windows')
-        const appimage = find('.appimage') || find('linux')
-        const dmg = find('.dmg') || find('macos') || find('apple')
+        const winUrl = findAsset('.msi') || findAsset('windows');
+        const linuxUrl = findAsset('.appimage') || findAsset('linux');
+        const macUrl = findAsset('.dmg') || findAsset('macos') || findAsset('apple');
 
-        if (msi) document.getElementById('dl-windows').href = msi
-        if (appimage) document.getElementById('dl-linux').href = appimage
-        if (dmg) document.getElementById('dl-mac').href = dmg
+        if (winUrl) document.getElementById('dl-windows').href = winUrl;
+        if (linuxUrl) document.getElementById('dl-linux').href = linuxUrl;
+        if (macUrl) document.getElementById('dl-mac').href = macUrl;
 
         document.getElementById('version-note').innerHTML =
-          `Version ${tag} — <a href="https://github.com/melkyfb/job-hunter/releases" style="color: var(--blue);">all versions</a>`
+          `Latest stable release: <strong>${tag}</strong> — <a href="https://github.com/melkyfb/job-hunter/releases" target="_blank" style="color: var(--blue-primary); font-weight:600;">all versions</a>`;
       })
-      .catch(() => { /* keep fallback links */ })
+      .catch(() => {
+        document.getElementById('version-note').innerHTML =
+          `<a href="https://github.com/melkyfb/job-hunter/releases" target="_blank" style="color: var(--blue-primary); font-weight:600;">View releases on GitHub</a>`;
+      });
   </script>
 </body>
 </html>
