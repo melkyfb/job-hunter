@@ -2,6 +2,6 @@
   "name": "job-hunter",
   "private": true,
   "scripts": {
-    "tauri": "pnpm --dir frontend tauri"
+    "tauri": "node frontend/node_modules/@tauri-apps/cli/dist/index.js"
   }
 }
