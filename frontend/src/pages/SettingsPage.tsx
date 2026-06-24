@@ -223,28 +223,30 @@ export function SettingsPage({ onBack }: Props) {
     setSaveError('')
     try {
       await saveConfig(cfg)
-      await updateConfig({
-        llm_provider: cfg.llmProvider === 'ollama' || cfg.llmProvider === 'lmstudio' || cfg.llmProvider === 'compatible' ? 'local' : cfg.llmProvider,
-        llm_model: cfg.llmModel,
-        llm_base_url: cfg.llmBaseUrl || undefined,
-        llm_api_key: cfg.llmApiKey || undefined,
-        llm_temperature: cfg.llmTemperature,
-        adzuna_app_id: cfg.adzunaAppId || undefined,
-        adzuna_api_key: cfg.adzunaApiKey || undefined,
-        adzuna_country: cfg.adzunaCountry,
-        search_provider: cfg.adzunaAppId && cfg.adzunaApiKey ? 'adzuna' : 'mock',
-        cv_prompt: cfg.cvPrompt || undefined,
-        cl_prompt: cfg.clPrompt || undefined,
-        cv_language: cfg.cvLanguage,
-        cl_language: cfg.clLanguage,
-      })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Save failed. Is the backend running?')
-    } finally {
+      setSaveError(err instanceof Error ? err.message : 'Save failed')
       setSaving(false)
+      return
     }
+    // Push to backend in-memory — best effort, backend may not be running yet
+    updateConfig({
+      llm_provider: cfg.llmProvider === 'ollama' || cfg.llmProvider === 'lmstudio' || cfg.llmProvider === 'compatible' ? 'local' : cfg.llmProvider,
+      llm_model: cfg.llmModel,
+      llm_base_url: cfg.llmBaseUrl || undefined,
+      llm_api_key: cfg.llmApiKey || undefined,
+      llm_temperature: cfg.llmTemperature,
+      adzuna_app_id: cfg.adzunaAppId || undefined,
+      adzuna_api_key: cfg.adzunaApiKey || undefined,
+      adzuna_country: cfg.adzunaCountry,
+      search_provider: cfg.adzunaAppId && cfg.adzunaApiKey ? 'adzuna' : 'mock',
+      cv_prompt: cfg.cvPrompt || undefined,
+      cl_prompt: cfg.clPrompt || undefined,
+      cv_language: cfg.cvLanguage,
+      cl_language: cfg.clLanguage,
+    }).catch(() => { /* backend not running — config syncs on next boot */ })
+    setSaving(false)
   }
 
   const providerInfo = PROVIDER_INFO[cfg.llmProvider]
