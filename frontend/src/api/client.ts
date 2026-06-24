@@ -14,16 +14,54 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 const BASE = import.meta.env.VITE_API_BASE ?? (isTauri ? 'http://localhost:8000' : '/api')
 
+/** Build a multipart/form-data body as Uint8Array so tauriFetch can serialize it. */
+async function buildMultipart(form: FormData): Promise<{ body: Uint8Array; contentType: string }> {
+  const boundary = `----TauriBoundary${Math.random().toString(36).slice(2)}`
+  const enc = new TextEncoder()
+  const chunks: Uint8Array[] = []
+
+  for (const [name, value] of form.entries()) {
+    chunks.push(enc.encode(`--${boundary}\r\n`))
+    if (value instanceof File || value instanceof Blob) {
+      const fname = value instanceof File ? value.name : 'blob'
+      const mime = value.type || 'application/octet-stream'
+      chunks.push(enc.encode(
+        `Content-Disposition: form-data; name="${name}"; filename="${fname}"\r\n` +
+        `Content-Type: ${mime}\r\n\r\n`
+      ))
+      chunks.push(new Uint8Array(await value.arrayBuffer()))
+      chunks.push(enc.encode('\r\n'))
+    } else {
+      chunks.push(enc.encode(`Content-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`))
+    }
+  }
+  chunks.push(enc.encode(`--${boundary}--\r\n`))
+
+  const total = chunks.reduce((n, c) => n + c.length, 0)
+  const body = new Uint8Array(total)
+  let off = 0
+  for (const c of chunks) { body.set(c, off); off += c.length }
+  return { body, contentType: `multipart/form-data; boundary=${boundary}` }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData
-  // tauriFetch handles JSON requests (bypasses mixed-content for tauri:// origin).
-  // FormData/file uploads use window.fetch directly — tauriFetch can't serialize File objects.
-  const fetchFn = isTauri && !isFormData ? (tauriFetch as unknown as typeof fetch) : fetch
-  // Never set Content-Type for FormData — browser must set it with the multipart boundary.
-  const headers = isFormData
-    ? (init?.headers ?? {})
-    : { 'Content-Type': 'application/json', ...init?.headers }
-  const res = await fetchFn(`${BASE}${path}`, { ...init, headers })
+  let body: RequestInit['body'] = init?.body
+  let contentType = isFormData ? undefined : 'application/json'
+
+  if (isTauri && isFormData) {
+    // tauriFetch can't serialize File objects — build raw multipart bytes instead.
+    const mp = await buildMultipart(init!.body as FormData)
+    body = mp.body as unknown as BodyInit
+    contentType = mp.contentType
+  }
+
+  const fetchFn = isTauri ? (tauriFetch as unknown as typeof fetch) : fetch
+  const headers = contentType
+    ? { 'Content-Type': contentType, ...init?.headers }
+    : { ...init?.headers }
+
+  const res = await fetchFn(`${BASE}${path}`, { ...init, body, headers })
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new ApiError(res.status, body.detail ?? 'Unknown error')
