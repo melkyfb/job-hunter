@@ -1,0 +1,8 @@
+[build]
+# Limit parallel rustc invocations to reduce peak memory usage.
+# Increase if you have more RAM / pagefile available.
+jobs = 2
+
+[profile.dev]
+# One codegen unit per crate — less parallelism, less peak RAM.
+codegen-units = 4
