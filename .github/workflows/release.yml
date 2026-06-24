@@ -66,6 +66,9 @@ jobs:
         working-directory: frontend
         run: pnpm install
 
+      - name: Install root dependencies (tauri-cli)
+        run: pnpm install
+
       # ── Rust ─────────────────────────────────────────────────────────────
       - uses: dtolnay/rust-toolchain@stable
         with:
