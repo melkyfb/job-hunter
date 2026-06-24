@@ -1,0 +1,14 @@
+C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\deps\serde-4ba196d2b7bc3cef.d: C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\build\serde-69dadcdd184ecf30\out/private.rs
+
+C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\deps\libserde-4ba196d2b7bc3cef.rlib: C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\build\serde-69dadcdd184ecf30\out/private.rs
+
+C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\deps\libserde-4ba196d2b7bc3cef.rmeta: C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\build\serde-69dadcdd184ecf30\out/private.rs
+
+C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\lib.rs:
+C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\integer128.rs:
+C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\mod.rs:
+C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\de.rs:
+C:\Users\itsal\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\serde-1.0.228\src\private\ser.rs:
+C:\Users\itsal\ClaudeWorkspace\job-hunter\src-tauri\target\debug\build\serde-69dadcdd184ecf30\out/private.rs:
+
+# env-dep:OUT_DIR=C:\\Users\\itsal\\ClaudeWorkspace\\job-hunter\\src-tauri\\target\\debug\\build\\serde-69dadcdd184ecf30\\out

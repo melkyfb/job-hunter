@@ -8,14 +8,18 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "api:types": "openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts"
+    "api:types": "openapi-typescript http://localhost:8000/openapi.json -o src/api/schema.d.ts",
+    "tauri": "tauri"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-store": "^2.4.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tauri-apps/cli": "^2.11.3",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
