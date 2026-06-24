@@ -5,3 +5,4 @@ entities.json
 
 node_modules/
 src-tauri/gen/
+.venv/

@@ -1,16 +1,24 @@
 # backend/backend.spec
 # -*- mode: python ; coding: utf-8 -*-
-import sys
+import os
 from pathlib import Path
 
 block_cipher = None
+# SPECPATH is the directory containing the .spec file (set by PyInstaller)
+HERE = Path(SPECPATH).resolve()  # noqa: F821
 
 a = Analysis(
     ['run.py'],
-    pathex=[str(Path.cwd())],
+    pathex=[str(HERE)],
     binaries=[],
-    datas=[],
+    datas=[
+        (str(HERE / 'app'), 'app'),
+    ],
     hiddenimports=[
+        # app.* included via datas — sys._MEIPASS on sys.path at runtime handles import
+        # pandas + numpy (used by jobspy)
+        'pandas', 'pandas._libs.tslibs.base', 'pandas._libs.tslibs.np_datetime',
+        'numpy', 'numpy.core', 'numpy.core._multiarray_umath',
         # uvicorn internals
         'uvicorn.logging',
         'uvicorn.loops',
@@ -62,14 +70,16 @@ a = Analysis(
         'jobspy',
     ],
     excludes=[
-        'playwright',
         'pytest',
         'tests',
         'tkinter',
         '_tkinter',
+        'torch',
+        'transformers',
+        'scipy',
+        'sklearn',
         'matplotlib',
-        'numpy',
-        'pandas',
+        'tensorboard',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

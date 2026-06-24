@@ -1,5 +1,4 @@
-// frontend/src/store/appConfig.ts
-import { load } from '@tauri-apps/plugin-store'
+import { invoke } from '@tauri-apps/api/core'
 
 export type LLMProvider = 'openai' | 'ollama' | 'lmstudio' | 'groq' | 'mistral' | 'compatible'
 
@@ -33,31 +32,31 @@ export const DEFAULT_CONFIG: AppConfig = {
   clLanguage: 'English',
 }
 
-async function getStore() {
-  return load('config.json')
-}
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
 export async function loadConfig(): Promise<AppConfig> {
-  const store = await getStore()
-  const result: Partial<AppConfig> = {}
-  for (const key of Object.keys(DEFAULT_CONFIG) as (keyof AppConfig)[]) {
-    const val = await store.get<AppConfig[typeof key]>(key)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(result as any)[key] = val ?? DEFAULT_CONFIG[key]
+  if (!isTauri) return { ...DEFAULT_CONFIG }
+
+  try {
+    const json = await invoke<string>('load_secure_config')
+    if (!json) return { ...DEFAULT_CONFIG }
+    const parsed = JSON.parse(json) as Partial<AppConfig>
+    return { ...DEFAULT_CONFIG, ...parsed }
+  } catch {
+    return { ...DEFAULT_CONFIG }
   }
-  return result as AppConfig
 }
 
 export async function saveConfig(cfg: AppConfig): Promise<void> {
-  const store = await getStore()
-  for (const [key, val] of Object.entries(cfg)) {
-    await store.set(key, val)
-  }
-  await store.save()
+  if (!isTauri) return
+  await invoke('save_secure_config', { json: JSON.stringify(cfg) })
 }
 
 export function configIsComplete(cfg: AppConfig): boolean {
-  const needsApiKey = cfg.llmProvider === 'openai' || cfg.llmProvider === 'groq' || cfg.llmProvider === 'mistral'
+  const needsApiKey =
+    cfg.llmProvider === 'openai' ||
+    cfg.llmProvider === 'groq' ||
+    cfg.llmProvider === 'mistral'
   if (needsApiKey && !cfg.llmApiKey) return false
   return true
 }

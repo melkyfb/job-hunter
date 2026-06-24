@@ -22,8 +22,8 @@ async function buildMultipart(form: FormData): Promise<{ body: Uint8Array; conte
 
   for (const [name, value] of form.entries()) {
     chunks.push(enc.encode(`--${boundary}\r\n`))
-    if (value instanceof File || value instanceof Blob) {
-      const fname = value instanceof File ? value.name : 'blob'
+    if (value instanceof File) {
+      const fname = value.name
       const mime = value.type || 'application/octet-stream'
       chunks.push(enc.encode(
         `Content-Disposition: form-data; name="${name}"; filename="${fname}"\r\n` +

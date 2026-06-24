@@ -5,9 +5,6 @@ from datetime import date, datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-import pandas as pd
-from jobspy import scrape_jobs
-
 from app.models.jobs import JobPosting
 
 logger = logging.getLogger(__name__)
@@ -20,6 +17,10 @@ class JobSpyProvider:
         self.site_name = site_name  # "linkedin" | "indeed" | "google"
 
     def search(self, query: str, location: str, max_results: int) -> list[JobPosting]:
+        # Lazy import — jobspy pulls in pandas/torch/scipy which bloat PyInstaller analysis
+        import pandas as pd  # noqa: PLC0415
+        from jobspy import scrape_jobs  # noqa: PLC0415
+
         df: pd.DataFrame = scrape_jobs(
             site_name=[self.site_name],
             search_term=query,
@@ -34,6 +35,8 @@ class JobSpyProvider:
 
 
 def _row_to_posting(row: Any, source: str) -> JobPosting:
+    import pandas as pd  # noqa: PLC0415
+
     salary: str | None = None
     min_amt = row.get("min_amount")
     max_amt = row.get("max_amount")

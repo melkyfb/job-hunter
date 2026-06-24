@@ -1,7 +1,7 @@
 {
   "productName": "Job Hunter Assistant",
   "version": "0.1.0",
-  "identifier": "com.jobhunter.app",
+  "identifier": "io.github.melkyfb.jobhunter",
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5173",
