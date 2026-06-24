@@ -5,6 +5,22 @@ from app.main import app
 from app.core.config import settings, LLMProvider
 
 
+@pytest.fixture(autouse=True)
+def restore_settings():
+    """Restore mutated settings fields after each test."""
+    saved = {
+        "cv_language": settings.cv_language,
+        "cl_language": settings.cl_language,
+        "search_provider": settings.search_provider,
+        "adzuna_app_id": settings.adzuna_app_id,
+        "llm_provider": settings.llm_provider,
+        "local_model": settings.local_model,
+    }
+    yield
+    for k, v in saved.items():
+        setattr(settings, k, v)
+
+
 @pytest.mark.asyncio
 async def test_get_llm_config_returns_current_settings():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

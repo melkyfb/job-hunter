@@ -149,6 +149,7 @@ export function SettingsPage({ onBack }: Props) {
   const [cfg, setCfg] = useState<AppConfig>(DEFAULT_CONFIG)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     loadConfig().then(setCfg)
@@ -169,6 +170,7 @@ export function SettingsPage({ onBack }: Props) {
 
   async function handleSave() {
     setSaving(true)
+    setSaveError('')
     try {
       await saveConfig(cfg)
       await updateConfig({
@@ -188,6 +190,8 @@ export function SettingsPage({ onBack }: Props) {
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Save failed. Is the backend running?')
     } finally {
       setSaving(false)
     }
@@ -360,6 +364,7 @@ export function SettingsPage({ onBack }: Props) {
             {saving ? 'Saving…' : 'Save Settings'}
           </button>
           {saved && <span style={{ fontSize: 13, color: 'var(--color-success)', fontWeight: 600 }}>✓ Saved</span>}
+          {saveError && <span style={{ fontSize: 13, color: 'var(--color-error)', fontWeight: 600 }}>{saveError}</span>}
         </div>
 
       </div>
