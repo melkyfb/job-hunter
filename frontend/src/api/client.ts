@@ -12,7 +12,24 @@ import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 // In Tauri (dev or prod) go directly to the sidecar via the HTTP plugin.
 // In plain browser (dev without Tauri), use Vite's proxy.
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
-const BASE = import.meta.env.VITE_API_BASE ?? (isTauri ? 'http://localhost:8000' : '/api')
+
+let API_BASE: string | null = null;
+
+/** * Garante que temos a porta dinâmica do backend antes de qualquer request.
+ */
+async function getApiBase(): Promise<string> {
+  if (API_BASE) return API_BASE;
+
+  if (isTauri) {
+    // Pergunta ao Rust qual foi a porta sorteada na inicialização
+    const port = await invoke<number>('get_backend_port');
+    API_BASE = `http://127.0.0.1:${port}`;
+  } else {
+    // Em dev (browser), continua usando o proxy do Vite
+    API_BASE = '/api';
+  }
+  return API_BASE;
+}
 
 /** Build a multipart/form-data body as Uint8Array so tauriFetch can serialize it. */
 async function buildMultipart(form: FormData): Promise<{ body: Uint8Array; contentType: string }> {
@@ -45,6 +62,7 @@ async function buildMultipart(form: FormData): Promise<{ body: Uint8Array; conte
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  API_BASE = await getApiBase();
   const isFormData = init?.body instanceof FormData
   let body: RequestInit['body'] = init?.body
   let contentType = isFormData ? undefined : 'application/json'
@@ -61,7 +79,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ? { 'Content-Type': contentType, ...init?.headers }
     : { ...init?.headers }
 
-  const res = await fetchFn(`${BASE}${path}`, { ...init, body, headers })
+  const res = await fetchFn(`${API_BASE}${path}`, { ...init, body, headers })
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
     throw new ApiError(res.status, body.detail ?? 'Unknown error')

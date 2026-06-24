@@ -6,6 +6,7 @@
   },
   "scripts": {
     "tauri": "tauri",
-    "dev": "pwsh -NoProfile -File scripts/ensure-dev-stub.ps1 && pnpm tauri dev"
+    "dev": "pwsh -NoProfile -File scripts/ensure-dev-stub.ps1 && pnpm tauri dev",
+    "build:all": "pwsh -Command \"$ErrorActionPreference = 'Stop'; Write-Host 'Limpando binário antigo...'; Remove-Item -Path '.\\src-tauri\\binaries\\job-hunter-backend-x86_64-pc-windows-msvc.exe' -ErrorAction SilentlyContinue; Write-Host 'Compilando backend com PyInstaller...'; Set-Location backend; pyinstaller --clean backend.spec; Copy-Item -Path '.\\dist\\job-hunter-backend.exe' -Destination '..\\src-tauri\\binaries\\job-hunter-backend-x86_64-pc-windows-msvc.exe'; Set-Location ..; Write-Host 'Iniciando Tauri build...'; pnpm tauri build\""
   }
 }

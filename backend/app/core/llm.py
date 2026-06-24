@@ -3,6 +3,9 @@ from functools import lru_cache
 from openai import OpenAI
 
 from app.core.config import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -16,6 +19,7 @@ def get_llm_client() -> OpenAI:
 
     The OpenAI SDK handles both cases identically — only base_url differs.
     """
+    logger.info(f"Using LLM provider: {settings.llm_provider} (model={settings.active_model}) with api_key={settings.active_api_key} and base_url={settings.active_base_url}")
     return OpenAI(
         api_key=settings.active_api_key,
         base_url=settings.active_base_url,  # None → SDK default (api.openai.com)

@@ -3,13 +3,37 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
 };
 use rand::RngCore;
+use std::net::TcpListener;
+use std::sync::Mutex;
 use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind};
+use tauri_plugin_shell::process::CommandChild;
 use tauri_plugin_shell::ShellExt;
 
 const KEYRING_SERVICE: &str = "io.github.melkyfb.jobhunter";
 const KEYRING_USER: &str = "config-key";
 const CONFIG_FILE: &str = "config.enc";
+
+// Estrutura para armazenar o estado do backend na memória do Tauri
+struct BackendState {
+    port: u16,
+    child_process: Mutex<Option<CommandChild>>,
+}
+
+// Função auxiliar para encontrar uma porta TCP livre no sistema
+fn get_available_port() -> u16 {
+    TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port()
+}
+
+// Comando para o frontend requisitar a porta
+#[tauri::command]
+fn get_backend_port(state: tauri::State<BackendState>) -> u16 {
+    state.port
+}
 
 fn get_or_create_key() -> Result<[u8; 32], String> {
     let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER).map_err(|e| e.to_string())?;
@@ -112,6 +136,9 @@ fn open_cv_preview(app: tauri::AppHandle, html: String) -> Result<(), String> {
 }
 
 pub fn run() {
+    // 1. Gera a porta dinâmica antes de iniciar o Tauri
+    let port = get_available_port();
+
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -123,31 +150,57 @@ pub fn run() {
         )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
-        .setup(|app| {
+        .setup(move |app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
 
+            // 2. Passa a porta selecionada via argumento (--port XXXX)
             let sidecar_result = app
                 .shell()
                 .sidecar("job-hunter-backend")
                 .map(|cmd| cmd.env("JH_DATA_DIR", data_dir.to_str().unwrap_or_default()))
+                .map(|cmd| cmd.args(["--port", &port.to_string()]))
                 .and_then(|cmd| cmd.spawn());
 
-            match sidecar_result {
+            let child_process = match sidecar_result {
                 Ok((_rx, child)) => {
-                    app.manage(child);
+                    Some(child)
                 }
                 Err(e) => {
                     eprintln!("Sidecar not found (dev mode?): {e}");
+                    None
                 }
-            }
+            };
+
+            // 3. Salva a porta e o processo no estado gerenciado
+            app.manage(BackendState {
+                port,
+                child_process: Mutex::new(child_process),
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             open_cv_preview,
             save_secure_config,
             load_secure_config,
+            get_backend_port, // Registra o comando
         ])
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::Destroyed => {
+                // Ponto de atenção: Garante que só matará o backend se a janela "main" for fechada
+                // Isso evita que fechar a janela do "cv-preview" encerre o servidor.
+                if window.label() == "main" {
+                    let state = window.state::<BackendState>();
+                    let mut child_guard = state.child_process.lock().unwrap();
+                    if let Some(child) = child_guard.take() {
+                        println!("Encerrando o servidor Python de forma segura...");
+                        let _ = child.kill();
+                    }
+                }
+            }
+            _ => {}
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
