@@ -6,11 +6,9 @@ fn open_cv_preview(app: tauri::AppHandle, html: String) -> Result<(), String> {
     // Write HTML to temp file — data URIs have size limits in some WebViews
     let tmp = std::env::temp_dir().join("jh-cv-preview.html");
     std::fs::write(&tmp, html.as_bytes()).map_err(|e| e.to_string())?;
-    let url_str = format!(
-        "file://{}",
-        tmp.to_str().unwrap_or_default().replace('\\', "/")
-    );
-    let url = url::Url::parse(&url_str).map_err(|e| e.to_string())?;
+    let path_str = tmp.to_str().unwrap_or_default().replace('\\', "/");
+    let url_str = format!("file:///{}", path_str.trim_start_matches('/'));
+    let url = url_str.parse::<url::Url>().map_err(|e| e.to_string())?;
 
     // Close existing preview window if already open
     if let Some(existing) = app.get_webview_window("cv-preview") {
@@ -19,8 +17,7 @@ fn open_cv_preview(app: tauri::AppHandle, html: String) -> Result<(), String> {
 
     tauri::WebviewWindowBuilder::new(&app, "cv-preview", tauri::WebviewUrl::External(url))
         .title("CV Preview — press Ctrl+P to save as PDF")
-        .width(900)
-        .height(1200)
+        .inner_size(900.0, 1200.0)
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())
