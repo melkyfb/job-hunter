@@ -8,7 +8,9 @@
 
 import { invoke } from '@tauri-apps/api/core'
 
-const BASE = import.meta.env.VITE_API_BASE ?? '/api'
+// In Tauri (dev or prod) go directly to the sidecar; in plain browser use Vite proxy.
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+const BASE = import.meta.env.VITE_API_BASE ?? (isTauri ? 'http://localhost:8000' : '/api')
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
