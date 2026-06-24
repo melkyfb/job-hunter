@@ -1,0 +1,7 @@
+{
+  "name": "job-hunter",
+  "private": true,
+  "scripts": {
+    "tauri": "pnpm --dir frontend tauri"
+  }
+}
