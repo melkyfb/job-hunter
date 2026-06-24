@@ -98,5 +98,5 @@ jobs:
           releaseDraft: true
           prerelease: false
           projectPath: '.'
-          tauriScript: 'pnpm run'
+          tauriScript: 'pnpm run tauri'
           args: '--target ${{ matrix.target }}'
