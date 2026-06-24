@@ -4,15 +4,15 @@ import hashlib
 import json
 import logging
 from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Optional
 
 from app.core.config import settings
+from app.core.paths import DATA_DIR
 from app.models.jobs import RankedJob
 
 logger = logging.getLogger(__name__)
 
-_CACHE_DIR = Path.home() / ".job_hunter" / "search_cache"
+_CACHE_DIR = DATA_DIR / "search_cache"
 
 
 def _cache_key(query: str, location: str, max_results: int) -> str:

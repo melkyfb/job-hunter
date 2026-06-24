@@ -1,15 +1,14 @@
+# backend/app/routers/application.py
 from __future__ import annotations
 
 import asyncio
-from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import Response
 from pydantic import BaseModel
 
 from app.models.jobs import JobPosting, MatchScore
 from app.repositories.profile_repository import ProfileNotFoundError, ProfileRepository
-from app.services.application import generate_application_package, generate_master_resume
+from app.services.application import generate_application_package, generate_master_resume_html
 
 router = APIRouter(prefix="/application", tags=["application"])
 
@@ -17,10 +16,14 @@ _repo = ProfileRepository()
 
 
 class ApplicationPackage(BaseModel):
-    job_id: UUID
-    resume_pdf_base64: str
+    job_id: str
+    resume_html: str
+    cover_letter_html: str
     cover_letter_text: str
-    cover_letter_pdf_base64: str
+
+
+class MasterResumeResponse(BaseModel):
+    html: str
 
 
 class GenerateRequest(BaseModel):
@@ -50,23 +53,14 @@ async def generate_application(req: GenerateRequest) -> ApplicationPackage:
     return ApplicationPackage(**result)
 
 
-@router.get(
-    "/master-resume",
-    response_class=Response,
-    responses={200: {"content": {"application/pdf": {}}}},
-)
-async def download_master_resume() -> Response:
+@router.get("/master-resume", response_model=MasterResumeResponse)
+async def download_master_resume() -> MasterResumeResponse:
     try:
         profile = _repo.load()
     except ProfileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No profile found.")
 
-    pdf_bytes = await asyncio.get_running_loop().run_in_executor(
-        None, generate_master_resume, profile
+    html = await asyncio.get_running_loop().run_in_executor(
+        None, generate_master_resume_html, profile
     )
-    filename = f"{profile.contact.full_name.replace(' ', '_')}_Resume.pdf"
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return MasterResumeResponse(html=html)

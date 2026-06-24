@@ -1,3 +1,4 @@
+# backend/app/repositories/profile_repository.py
 from __future__ import annotations
 
 import json
@@ -5,11 +6,11 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
+from app.core.paths import DATA_DIR
 from app.models.profile import ProfileMaster
 
-_STORAGE_DIR = Path.home() / ".job_hunter"
-_PROFILE_PATH = _STORAGE_DIR / "profile_master.json"
-_PARTIAL_PATH = _STORAGE_DIR / "profile_partial.json"  # temporary HITL state
+_PROFILE_PATH = DATA_DIR / "profile_master.json"
+_PARTIAL_PATH = DATA_DIR / "profile_partial.json"
 
 
 class ProfileNotFoundError(Exception):
@@ -47,8 +48,6 @@ class ProfileRepository:
         if self._path.exists():
             self._path.unlink()
 
-    # ── Partial profile (HITL temporary state) ───────────────────────────────
-
     def save_partial(self, profile: ProfileMaster) -> None:
         self._partial_path.parent.mkdir(parents=True, exist_ok=True)
         self._partial_path.write_text(
@@ -58,9 +57,7 @@ class ProfileRepository:
 
     def load_partial(self) -> ProfileMaster:
         if not self._partial_path.exists():
-            raise ProfileNotFoundError(
-                "No partial profile found. Run /ingest first."
-            )
+            raise ProfileNotFoundError("No partial profile found. Run /ingest first.")
         try:
             data = json.loads(self._partial_path.read_text(encoding="utf-8"))
             return ProfileMaster.model_validate(data)

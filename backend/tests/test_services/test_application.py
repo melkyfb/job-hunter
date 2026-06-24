@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import base64
 from datetime import date
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
@@ -60,7 +59,7 @@ _FAKE_HTML = "<html><body><h1>Ada Lovelace</h1></body></html>"
 def test_generate_html_substitutes_job_description():
     mock_client = _make_llm_mock(_FAKE_HTML)
     with patch("app.services.application.get_llm_client", return_value=mock_client):
-        result = _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt)
+        result = _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt, "English")
     call_kwargs = mock_client.chat.completions.create.call_args
     user_content = call_kwargs.kwargs["messages"][0]["content"]
     assert "Backend Engineer at Acme GmbH" in user_content
@@ -70,7 +69,7 @@ def test_generate_html_substitutes_job_description():
 def test_generate_html_includes_reference_text():
     mock_client = _make_llm_mock(_FAKE_HTML)
     with patch("app.services.application.get_llm_client", return_value=mock_client):
-        _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt)
+        _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt, "English")
     call_kwargs = mock_client.chat.completions.create.call_args
     user_content = call_kwargs.kwargs["messages"][0]["content"]
     assert "Ada Lovelace" in user_content  # from reference_text
@@ -80,7 +79,7 @@ def test_generate_html_includes_reference_text():
 def test_generate_html_strips_markdown_fences():
     mock_client = _make_llm_mock("```html\n<html><body>test</body></html>\n```")
     with patch("app.services.application.get_llm_client", return_value=mock_client):
-        result = _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt)
+        result = _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt, "English")
     assert result == "<html><body>test</body></html>"
     assert "```" not in result
 
@@ -88,17 +87,15 @@ def test_generate_html_strips_markdown_fences():
 def test_generate_html_strips_generic_fences():
     mock_client = _make_llm_mock("```\n<html><body>x</body></html>\n```")
     with patch("app.services.application.get_llm_client", return_value=mock_client):
-        result = _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt)
+        result = _generate_html(_PROFILE, _JOB, _PROFILE.cv_prompt, "English")
     assert "```" not in result
 
 
 def test_generate_application_package_structure():
-    fake_pdf = b"%PDF-1.4 fake"
     mock_client = _make_llm_mock(_FAKE_HTML)
-    with patch("app.services.application.get_llm_client", return_value=mock_client), \
-         patch("app.services.application._html_to_pdf", return_value=fake_pdf):
+    with patch("app.services.application.get_llm_client", return_value=mock_client):
         pkg = generate_application_package(_PROFILE, _JOB, _MATCH)
-    assert pkg["job_id"] == _JOB.id
-    assert base64.b64decode(pkg["resume_pdf_base64"]) == fake_pdf
-    assert base64.b64decode(pkg["cover_letter_pdf_base64"]) == fake_pdf
+    assert pkg["job_id"] == str(_JOB.id)
+    assert pkg["resume_html"] == _FAKE_HTML
+    assert pkg["cover_letter_html"] == _FAKE_HTML
     assert isinstance(pkg["cover_letter_text"], str)

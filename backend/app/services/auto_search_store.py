@@ -21,7 +21,9 @@ from app.models.jobs import RankedJob
 
 logger = logging.getLogger(__name__)
 
-_STORAGE_DIR = Path.home() / ".job_hunter"
+from app.core.paths import DATA_DIR
+
+_STORAGE_DIR = DATA_DIR
 _CONFIG_PATH = _STORAGE_DIR / "auto_search_config.json"
 _RESULTS_PATH = _STORAGE_DIR / "auto_search_results.json"
 _STATUS_PATH = _STORAGE_DIR / "job_status.json"
