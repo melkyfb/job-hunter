@@ -1,0 +1,102 @@
+# .github/workflows/release.yml
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            sidecar-name: job-hunter-backend
+            sidecar-ext: ''
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            sidecar-name: job-hunter-backend
+            sidecar-ext: '.exe'
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            sidecar-name: job-hunter-backend
+            sidecar-ext: ''
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Python + PyInstaller ──────────────────────────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies + PyInstaller
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build Python sidecar
+        working-directory: backend
+        run: pyinstaller backend.spec
+
+      - name: Stage sidecar for Tauri
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          cp "backend/dist/${{ matrix.sidecar-name }}${{ matrix.sidecar-ext }}" \
+             "src-tauri/binaries/${{ matrix.sidecar-name }}-${{ matrix.target }}${{ matrix.sidecar-ext }}"
+
+      # ── Node + pnpm ───────────────────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install
+
+      # ── Rust ─────────────────────────────────────────────────────────────
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # ── Linux system deps ─────────────────────────────────────────────────
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev \
+            librsvg2-dev patchelf libgtk-3-dev libsoup-3.0-dev
+
+      # ── Tauri build + release ─────────────────────────────────────────────
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_API_BASE: 'http://localhost:8000'
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Job Hunter Assistant ${{ github.ref_name }}'
+          releaseBody: |
+            ## What's New
+            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ## Downloads
+            - **Windows**: `.msi` installer
+            - **Linux**: `.AppImage` (portable) or `.deb`
+            - **macOS**: `.dmg`
+          releaseDraft: true
+          prerelease: false
+          projectPath: '.'
+          tauriScript: 'pnpm tauri'
+          args: '--target ${{ matrix.target }}'
