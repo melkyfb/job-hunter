@@ -7,13 +7,18 @@
  */
 
 import { invoke } from '@tauri-apps/api/core'
+import { fetch as tauriFetch } from '@tauri-apps/plugin-http'
 
-// In Tauri (dev or prod) go directly to the sidecar; in plain browser use Vite proxy.
+// In Tauri (dev or prod) go directly to the sidecar via the HTTP plugin.
+// In plain browser (dev without Tauri), use Vite's proxy.
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 const BASE = import.meta.env.VITE_API_BASE ?? (isTauri ? 'http://localhost:8000' : '/api')
 
+// Use Tauri's HTTP plugin when available — bypasses WebView mixed-content restrictions.
+const _fetch: typeof fetch = isTauri ? (tauriFetch as unknown as typeof fetch) : fetch
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await _fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   })
